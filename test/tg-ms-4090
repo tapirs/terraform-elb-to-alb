@@ -1,0 +1,6 @@
+resource "aws_lb_target_group" "tg-ms-4090" {
+name = "tg-ms-4090"
+port = "%!d(string=4090)"
+protocol = "http"
+vpc_id = "vpc_id"
+}

@@ -1,0 +1,6 @@
+resource "aws_lb_target_group" "tg-ms-4000" {
+name = "tg-ms-4000"
+port = "%!d(string=4000)"
+protocol = "http"
+vpc_id = "vpc_id"
+}
