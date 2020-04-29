@@ -1,6 +1,0 @@
-resource "aws_lb_target_group" "tg-ms-8080" {
-name = "tg-ms-8080"
-port = 8080
-protocol = "http"
-vpc_id = "vpc_id"
-}

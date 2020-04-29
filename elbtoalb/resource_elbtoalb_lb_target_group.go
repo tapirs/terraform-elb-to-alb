@@ -255,6 +255,8 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		return err
 	}
 
+	deregistrationDelay := d.Get("connection_draining_timeout")
+
 	for _, listener := range listeners {
 		log.Println(listener)
 
@@ -281,20 +283,20 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		// d.Set("vpc_id", "vpc_id")
 		err = os.MkdirAll("./lb_terraform/target_group", 0755)
 		if err != nil {
-        panic(err)
+        return err
     }
 
-		f, err := os.Create(fmt.Sprintf("./lb_terraform/target_group/%s", groupName))
+		f, err := os.Create(fmt.Sprintf("./lb_terraform/target_group/%s.tf", groupName))
 		if err != nil {
-        panic(err)
+        return err
     }
 
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-    _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = \"vpc_id\"\n}", groupName, groupName, instancePort, instanceProtocol))
+    _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = \"vpc_id\"\n\nderegistration_delay = %d\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay))
 		if err != nil {
-        panic(err)
+        return err
     }
 
 		w.Flush()

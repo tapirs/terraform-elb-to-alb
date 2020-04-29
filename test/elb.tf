@@ -11,6 +11,15 @@ resource "elbtoalb_elb" "ms_elb" {
     interval      = 5
   }
 
+  security_groups = [
+    "aws_security_group.elb.id"
+  ]
+
+  subnets = [
+    "data.terraform_remote_state.vpcs.outputs.searchlight-subnet-1a",
+    "data.terraform_remote_state.vpcs.outputs.searchlight-subnet-1b",
+  ]
+
   listener {
     instance_port     = 8080
     instance_protocol = "tcp"
@@ -52,4 +61,8 @@ resource "elbtoalb_elb" "ms_elb" {
   connection_draining         = true
   connection_draining_timeout = 400
 
+  tags = {
+    "Name"        = "MS elb"
+    "Environment" = "test"
+  }
 }

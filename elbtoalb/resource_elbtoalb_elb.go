@@ -300,6 +300,10 @@ func resourceElbtoalbElbCreate(d *schema.ResourceData, meta interface{}) error {
 		return fmt.Errorf("error creating Lb Target Group: %s", err)
 	}
 
+	if err := resourceElbtoalbLbCreate(d, meta); err != nil {
+		return fmt.Errorf("error creating Lb Target Group: %s", err)
+	}
+
 	return nil
 }
 
