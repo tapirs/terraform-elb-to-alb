@@ -4,6 +4,11 @@ import (
 	"regexp"
 	"strings"
 	"time"
+	"log"
+	"strconv"
+	"os"
+	"fmt"
+	"bufio"
 
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -12,6 +17,9 @@ import (
 
 func resourceElbtoalbLbListener() *schema.Resource {
 	return &schema.Resource{
+		Create: resourceElbtoalbLbListenerCreate,
+		Read: resourceElbtoalbLbListenerRead,
+		Delete: resourceElbtoalbLbListenerDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -35,12 +43,14 @@ func resourceElbtoalbLbListener() *schema.Resource {
 			"port": {
 				Type:         schema.TypeInt,
 				Required:     true,
+				ForceNew: true,
 				ValidateFunc: validation.IntBetween(1, 65535),
 			},
 
 			"protocol": {
 				Type:     schema.TypeString,
 				Optional: true,
+				ForceNew: true,
 				Default:  "HTTP",
 				StateFunc: func(v interface{}) string {
 					return strings.ToUpper(v.(string))
@@ -64,11 +74,13 @@ func resourceElbtoalbLbListener() *schema.Resource {
 			"certificate_arn": {
 				Type:     schema.TypeString,
 				Optional: true,
+				ForceNew: true,
 			},
 
 			"default_action": {
 				Type:     schema.TypeList,
 				Required: true,
+				ForceNew: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"type": {
@@ -304,6 +316,84 @@ func resourceElbtoalbLbListener() *schema.Resource {
 			},
 		},
 	}
+}
+
+func resourceElbtoalbLbListenerCreate(d *schema.ResourceData, meta interface{}) error {
+	log.Println("in lb listener create")
+
+	// Expand the "listener" set to aws-sdk-go compat []*elb.Listener
+	listeners, err := expandListeners(d.Get("listener").(*schema.Set).List())
+	if err != nil {
+		return err
+	}
+
+	for _, listener := range listeners {
+		log.Println(listener)
+
+		lbPort := *listener.LoadBalancerPort
+		lbProtocol := "http"
+		instancePort := *listener.InstancePort
+
+		if *listener.Protocol == "tcp" && *listener.SSLCertificateId != "" {
+			lbProtocol = "https"
+		}
+
+		var listenerName string
+		var lbArn string
+		var targetGroupArn string
+		if v, ok := d.GetOk("name"); ok {
+			listenerName = "listener-" + strconv.FormatInt(lbPort, 10)
+			lbArn = "aws_lb." + strings.Replace(v.(string), "elb-", "lb-", 1) + ".arn"
+			targetGroupArn = "aws_lb_target_group." + strings.Replace(v.(string), "elb-", "tg-", 1) + "-" + strconv.FormatInt(instancePort, 10) + ".arn"
+		}
+
+		certificateArn := *listener.SSLCertificateId
+
+		if !fileExists(fmt.Sprintf("./lb_terraform/listener/%s.tf", listenerName)) {
+
+			err := os.MkdirAll("./lb_terraform/listener", 0755)
+			if err != nil {
+		      return err
+		  }
+
+			f, err := os.Create(fmt.Sprintf("./lb_terraform/listener/%s.tf", listenerName))
+			if err != nil {
+		      return err
+		  }
+
+			defer f.Close()
+
+			w := bufio.NewWriter(f)
+		  _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_listener\" \"%s\" {\nload_balancer_arn = %s\nport = %d\nprotocol = \"%s\"\nssl_policy = \"ELBSecurityPolicy-2016-08\"\ncertificate_arn = \"%s\"\n\ndefault_action {\ntype = \"forward\"\ntarget_group_arn = %s\n}\n}", listenerName, lbArn, lbPort, lbProtocol, certificateArn, targetGroupArn))
+			if err != nil {
+		      return err
+		  }
+
+			w.Flush()
+		}
+	}
+
+	return nil
+}
+
+func resourceElbtoalbLbListenerRead(d *schema.ResourceData, meta interface{}) error {
+	log.Println("in read")
+
+	return nil
+}
+
+func resourceElbtoalbLbListenerDelete(d *schema.ResourceData, meta interface{}) error {
+	log.Println("in delete")
+
+	return nil
+}
+
+func fileExists(filename string) bool {
+    info, err := os.Stat(filename)
+    if os.IsNotExist(err) {
+        return false
+    }
+    return !info.IsDir()
 }
 
 func suppressIfDefaultActionTypeNot(t string) schema.SchemaDiffSuppressFunc {

@@ -297,11 +297,15 @@ func resourceElbtoalbElbCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	if err := resourceElbtoalbLbTargetGroupCreate(d, meta); err != nil {
-		return fmt.Errorf("error creating Lb Target Group: %s", err)
+		return fmt.Errorf("error creating Lb: %s", err)
 	}
 
 	if err := resourceElbtoalbLbCreate(d, meta); err != nil {
 		return fmt.Errorf("error creating Lb Target Group: %s", err)
+	}
+
+	if err := resourceElbtoalbLbListenerCreate(d, meta); err != nil {
+		return fmt.Errorf("error creating Lb Listener: %s", err)
 	}
 
 	return nil
