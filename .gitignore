@@ -18,3 +18,11 @@ lb_terraform/
 crash.log
 terraform.tfstate*
 .terraform
+searchlight
+test/.terraform
+crash.log
+mappings.txt
+myMappings.txt
+elbtoalb-tools/elbtoalb
+elbtoalb-tools/elbtoalb-tools
+test

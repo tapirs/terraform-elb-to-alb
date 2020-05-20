@@ -1,7 +1,7 @@
 package elbtoalb
 
 import (
-	"log"
+	// "log"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
@@ -9,7 +9,6 @@ import (
 )
 
 func Provider() terraform.ResourceProvider {
-	  log.Println("hello")
     provider := &schema.Provider{
 			Schema: map[string]*schema.Schema{},
 
@@ -30,6 +29,5 @@ func Provider() terraform.ResourceProvider {
 				"elbtoalb_lb_target_group_attachment":  resourceElbtoalbLbTargetGroupAttachment(),
 			},
     }
-		log.Println("completed provider")
 		return provider
 }

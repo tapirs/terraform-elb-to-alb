@@ -261,32 +261,36 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		log.Println(listener)
 
 		instancePort := *listener.InstancePort
-		instanceProtocol := "http"
+		instanceProtocol := "HTTP"
 
 		if *listener.InstanceProtocol == "tcp" && *listener.SSLCertificateId != "" {
-			instanceProtocol = "https"
+			instanceProtocol = "HTTPS"
 		}
 
 		var groupName string
+		// var lbName string
 		if v, ok := d.GetOk("name"); ok {
 			groupName = strings.Replace(v.(string), "elb-", "tg-", 1) + "-" + strconv.FormatInt(instancePort, 10)
+			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
 		} else if v, ok := d.GetOk("name_prefix"); ok {
 			groupName = resource.PrefixedUniqueId(v.(string))
+			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
 		} else {
 			groupName = resource.PrefixedUniqueId("tf-")
+			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
 		}
 
-		// d.SetId(groupName)
-		// d.Set("target_type", elbv2.TargetTypeEnumInstance)
-		// d.Set("port", instancePort)
-		// d.Set("protocol", instanceProtocol)
-		// d.Set("vpc_id", "vpc_id")
+		resourceName := strings.ReplaceAll(groupName, "-e2a-env-br", "")
+		// lbName = strings.ReplaceAll(lbName, "-e2a-env", "")
+
+		// lbName = "lb"
+
 		err = os.MkdirAll("./lb_terraform/target_group", 0755)
 		if err != nil {
         return err
     }
 
-		f, err := os.Create(fmt.Sprintf("./lb_terraform/target_group/%s.tf", groupName))
+		f, err := os.Create(fmt.Sprintf("./lb_terraform/target_group/%s.tf", resourceName))
 		if err != nil {
         return err
     }
@@ -300,6 +304,21 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
     }
 
 		w.Flush()
+
+		// lbf, err := os.OpenFile(fmt.Sprintf("./lb_terraform/%s.tf", lbName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		// if err != nil {
+		// 	return err
+		// }
+		//
+		// defer f.Close()
+		//
+		// w = bufio.NewWriter(lbf)
+		// _, err = w.WriteString(fmt.Sprintf("\n\nresource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = \"vpc_id\"\n\nderegistration_delay = %d\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay))
+		// if err != nil {
+		// 		return err
+		// }
+		//
+		// w.Flush()
 	}
 
 	return nil

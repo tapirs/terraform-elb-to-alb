@@ -3,20 +3,44 @@ package elbtoalb
 import (
 	"bytes"
 	"fmt"
-	"regexp"
+	// "regexp"
 	"time"
 	"log"
 	"os"
 	"bufio"
 	"strings"
+	// "io/ioutil"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	// "github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
+
+type LB struct {
+	Name string
+	Internal bool
+	Load_balancer_type string
+	Security_groups []string
+	Subnets []string
+
+	Enable_deletion_protection bool
+	Enable_cross_zone_load_balancing bool
+	Idle_timeout int
+
+	Access_logs Access_logs
+
+	Tags map[string]interface{}
+}
+
+type Access_logs struct {
+	Bucket string
+	Prefix string
+	Enabled bool
+}
+
+var lb LB
 
 func resourceElbtoalbLb() *schema.Resource {
 	return &schema.Resource{
@@ -230,98 +254,196 @@ func resourceElbtoalbLb() *schema.Resource {
 func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	log.Println("in lb create")
 
-	var lbName string
-	if v, ok := d.GetOk("name"); ok {
-		lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
-	} else if v, ok := d.GetOk("name_prefix"); ok {
-		lbName = resource.PrefixedUniqueId(v.(string))
-	} else {
-		lbName = resource.PrefixedUniqueId("tf-lb-")
-	}
+	// var lbName string
+	// if v, ok := d.GetOk("name"); ok {
+	// 	lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
+	// } else if v, ok := d.GetOk("name_prefix"); ok {
+	// 	lbName = resource.PrefixedUniqueId(v.(string))
+	// } else {
+	// 	lbName = resource.PrefixedUniqueId("tf-lb-")
+	// }
 
-	log.Println(d.Get("access_logs"))
+	resourceElbtoalbLbRead(d, meta)
+
+	lbName := "lb-e2a-env-br"
+	// resourceName := strings.ReplaceAll(lbName, "-e2a-env", "")
+
 	internal := d.Get("internal")
 	cz_lb := d.Get("cross_zone_load_balancing")
 	idle_timeout := d.Get("idle_timeout")
 
 
 	security_groups_list := expandStringSet(d.Get("security_groups").(*schema.Set))
-	var security_groups []string
+	security_groups := lb.Security_groups
 	for _, sg := range security_groups_list {
-		security_groups = append(security_groups, fmt.Sprintf("\"%s\"", *sg))
+		if !strings.Contains(strings.Join(security_groups, ", "), fmt.Sprintf("\"%s\"", *sg)) {
+			security_groups = append(security_groups, fmt.Sprintf("\"%s\"", *sg))
+		}
+
 	}
 
 	subnets_list := expandStringSet(d.Get("subnets").(*schema.Set))
-	var subnets []string
+	subnets := lb.Subnets
 	for _, sn := range subnets_list {
-		log.Println(sn)
-		subnets = append(subnets, fmt.Sprintf("\"%s\",", *sn))
+		if !strings.Contains(strings.Join(subnets, ", "), fmt.Sprintf("\"%s\"", *sn)) {
+			subnets = append(subnets, fmt.Sprintf("\"%s\"", *sn))
+		}
 	}
 
 	deletion_protection := true
 
 	access_logs_list := d.Get("access_logs").([]interface {})
-	access_logs := "{\n"
-	for key, val := range access_logs_list[0].(map[string]interface {}) {
-		var s string
-		switch val.(type) {
-    case int:
-			s = fmt.Sprintf("%s = %d", key, val)
-    case float64:
-			s = fmt.Sprintf("%s = %d", key, val)
-    case string:
-			val = strings.Replace(val.(string), "elb-", "lb-", 1)
-			s = fmt.Sprintf("%s = \"%s\"", key, val)
-    case bool:
-			s = fmt.Sprintf("%s = %t", key, val)
-    }
-		access_logs = access_logs + s + "\n"
+	var access_logs Access_logs
+	access_logs.Bucket = lb.Access_logs.Bucket
+	if len(access_logs_list) > 0 {
+		for key, val := range access_logs_list[0].(map[string]interface {}) {
+			if key == "bucket" {
+				access_logs.Bucket = val.(string)
+				break
+			}
+		}
 	}
-	access_logs = access_logs + "}"
 
-	tags := "{\n"
-	for key, val := range d.Get("tags").(map[string]interface {}) {
-		var s string
-		switch val.(type) {
-    case int:
-			s = fmt.Sprintf("%s = %d", key, val)
-    case float64:
-			s = fmt.Sprintf("%s = %d", key, val)
-    case string:
-			val = strings.Replace(val.(string), "elb", "lb", 1)
-			s = fmt.Sprintf("%s = \"%s\"", key, val)
-    case bool:
-			s = fmt.Sprintf("%s = %t", key, val)
-    }
-		tags = tags + s + "\n"
+	access_logs.Prefix = lb.Name
+	access_logs.Enabled = true
+
+
+	// tags := "{\n"
+	// for key, val := range d.Get("tags").(map[string]interface {}) {
+	// 	var s string
+	// 	switch val.(type) {
+  //   case int:
+	// 		s = fmt.Sprintf("%s = %d", key, val)
+  //   case float64:
+	// 		s = fmt.Sprintf("%s = %d", key, val)
+  //   case string:
+	// 		val = strings.Replace(val.(string), "elb", "lb", 1)
+	// 		s = fmt.Sprintf("%s = \"%s\"", key, val)
+  //   case bool:
+	// 		s = fmt.Sprintf("%s = %t", key, val)
+  //   }
+	// 	tags = tags + s + "\n"
+	// }
+	// tags = tags + "}"
+
+	var tags map[string]interface{}
+	if lb.Tags == nil {
+		tags = make(map[string]interface{})
+	} else {
+		tags = lb.Tags
 	}
-	tags = tags + "}"
+
+	for key, val := range d.Get("tags").(map[string]interface {}) {
+		log.Println("Tag is - " + key + ":" + val.(string))
+		if tags[key] != nil {
+			tags[key] = tags[key].(string) + val.(string) + " "
+		} else {
+			tags[key] = val.(string) + " "
+		}
+
+	}
+
+
+	lb.Name = lbName
+	lb.Internal = internal.(bool)
+	lb.Load_balancer_type = "application"
+	lb.Security_groups = security_groups
+	lb.Subnets = subnets
+	lb.Enable_deletion_protection = deletion_protection
+	lb.Enable_cross_zone_load_balancing = cz_lb.(bool)
+	lb.Idle_timeout = idle_timeout.(int)
+	lb.Access_logs = access_logs
+	lb.Tags = tags
+
+
+	// lb = append(lb, fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = \"%t\"\nload_balancer_type = \"application\"\nsecurity_groups = %v\nsubnets = %v\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\ntags = %v\n}", lbName, lbName, internal, security_groups, subnets, deletion_protection, cz_lb, idle_timeout, tags))
+
+	log.Println("Current lb is - " + fmt.Sprintf("%#v", lb))
 
 	err := os.MkdirAll("./lb_terraform/", 0755)
 	if err != nil {
       return err
   }
 
-	f, err := os.Create(fmt.Sprintf("./lb_terraform/%s.tf", lbName))
+	f, err := os.Create("./lb_terraform/lb.tf")
 	if err != nil {
       return err
   }
 
-	defer f.Close()
-
 	w := bufio.NewWriter(f)
-  _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = \"%t\"\nload_balancer_type = \"application\"\nsecurity_groups = %v\nsubnets = %v\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs %v\n\ntags = %v\n}", lbName, lbName, internal, security_groups, subnets, deletion_protection, cz_lb, idle_timeout, access_logs, tags))
+
+	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n\ntags = {\ntags = \"%v\"\n}\n}", lb.Name, lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled, lb.Tags["tags"]))
 	if err != nil {
       return err
   }
 
 	w.Flush()
+	// } else {
+	// 	r, err := regexp.Compile(`(?s)security_groups = \[(.*?)\]`)
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 		return err
+	// 	}
+	// 	dat, err := ioutil.ReadFile(fmt.Sprintf("./lb_terraform/%s.tf", "lb"))
+	// 	if err != nil {
+	// 		log.Println(err)
+	// 		return err
+	// 	}
+	//
+	// 	var new_lb string
+	//
+	// 	log.Println("Before - " + string(dat))
+	// 	log.Println("sec matches - " + strings.Join(security_groups, ", "))
+	// 	if len(security_groups) > 1 {
+	// 		new_lb = r.ReplaceAllString(string(dat), "security_groups = [" + strings.Join(security_groups, ", ") + "]")
+	// 	} else {
+	// 		new_lb = string(dat)
+	// 	}
+	//
+	// 	log.Println("After - \"" + new_lb + "\"")
+	//
+	// 	if new_lb != "" {
+	// 		log.Println("Writing lb.tf with - " + new_lb)
+	// 		f, err := os.Create(fmt.Sprintf("./lb_terraform/%s.tf", "lb"))
+	// 		if err != nil {
+	// 	      return err
+	// 	  }
+	//
+	// 		w := bufio.NewWriter(f)
+	//
+	// 		_, err = w.WriteString(new_lb)
+	// 		if err != nil {
+	// 	      return err
+	// 	  }
+	// 	}
+	// }
 
 	return nil
 }
 
 func resourceElbtoalbLbRead(d *schema.ResourceData, meta interface{}) error {
 	log.Println("in read")
+
+	// lb, err := ioutil.ReadFile("./lb_terraform/lb.tf")
+	// if err != nil {
+	// 	log.Println(err)
+	// 	return err
+	// }
+	//
+	// r, err := regexp.Compile(`(?s)security_groups = \[\"(.*?)\"\]`)
+  // security_groups := r.FindSubmatch([]byte(lb))
+	//
+	// current_sec_groups := d.Get("security_groups").(*schema.Set)
+	//
+	// if len(security_groups) > 0 {
+	// 	log.Println("sec groups are " + string(security_groups[1]))
+	// 	log.Println("current sec groups are " + current_sec_groups.GoString())
+	// 	current_sec_groups.Add(string(security_groups[1]))
+	// }
+	//
+	// log.Println("current sec groups are now " + current_sec_groups.GoString())
+	//
+	// d.Set("security_groups", current_sec_groups)
 
 	return nil
 }
@@ -336,143 +458,6 @@ func suppressIfLBType(t string) schema.SchemaDiffSuppressFunc {
 	return func(k string, old string, new string, d *schema.ResourceData) bool {
 		return d.Get("load_balancer_type").(string) == t
 	}
-}
-
-func getLbNameFromArn(arn string) (string, error) {
-	re := regexp.MustCompile("([^/]+/[^/]+/[^/]+)$")
-	matches := re.FindStringSubmatch(arn)
-	if len(matches) != 2 {
-		return "", fmt.Errorf("Unexpected ARN format: %q", arn)
-	}
-
-	// e.g. app/example-alb/b26e625cdde161e6
-	return matches[1], nil
-}
-
-// flattenSubnetsFromAvailabilityZones creates a slice of strings containing the subnet IDs
-// for the ALB based on the AvailabilityZones structure returned by the API.
-func flattenSubnetsFromAvailabilityZones(availabilityZones []*elbv2.AvailabilityZone) []string {
-	var result []string
-	for _, az := range availabilityZones {
-		result = append(result, aws.StringValue(az.SubnetId))
-	}
-	return result
-}
-
-func flattenSubnetMappingsFromAvailabilityZones(availabilityZones []*elbv2.AvailabilityZone) []map[string]interface{} {
-	l := make([]map[string]interface{}, 0)
-	for _, availabilityZone := range availabilityZones {
-		m := make(map[string]interface{})
-		m["subnet_id"] = aws.StringValue(availabilityZone.SubnetId)
-
-		for _, loadBalancerAddress := range availabilityZone.LoadBalancerAddresses {
-			m["allocation_id"] = aws.StringValue(loadBalancerAddress.AllocationId)
-		}
-
-		l = append(l, m)
-	}
-	return l
-}
-
-func lbSuffixFromARN(arn *string) string {
-	if arn == nil {
-		return ""
-	}
-
-	if arnComponents := regexp.MustCompile(`arn:.*:loadbalancer/(.*)`).FindAllStringSubmatch(*arn, -1); len(arnComponents) == 1 {
-		if len(arnComponents[0]) == 2 {
-			return arnComponents[0][1]
-		}
-	}
-
-	return ""
-}
-
-// flattenAwsLbResource takes a *elbv2.LoadBalancer and populates all respective resource fields.
-func flattenAwsLbResource(d *schema.ResourceData, meta interface{}, lb *elbv2.LoadBalancer) error {
-	// elbconn := meta.(*AWSClient).elbv2conn
-
-	d.Set("arn", lb.LoadBalancerArn)
-	d.Set("arn_suffix", lbSuffixFromARN(lb.LoadBalancerArn))
-	d.Set("name", lb.LoadBalancerName)
-	d.Set("internal", (lb.Scheme != nil && aws.StringValue(lb.Scheme) == "internal"))
-	d.Set("security_groups", flattenStringList(lb.SecurityGroups))
-	d.Set("vpc_id", lb.VpcId)
-	d.Set("zone_id", lb.CanonicalHostedZoneId)
-	d.Set("dns_name", lb.DNSName)
-	d.Set("ip_address_type", lb.IpAddressType)
-	d.Set("load_balancer_type", lb.Type)
-
-	if err := d.Set("subnets", flattenSubnetsFromAvailabilityZones(lb.AvailabilityZones)); err != nil {
-		return fmt.Errorf("error setting subnets: %s", err)
-	}
-
-	if err := d.Set("subnet_mapping", flattenSubnetMappingsFromAvailabilityZones(lb.AvailabilityZones)); err != nil {
-		return fmt.Errorf("error setting subnet_mapping: %s", err)
-	}
-
-	// tags, err := keyvaluetags.Elbv2ListTags(elbconn, d.Id())
-
-	// if err != nil {
-	// 	return fmt.Errorf("error listing tags for (%s): %s", d.Id(), err)
-	// }
-
-	// if err := d.Set("tags", tags.IgnoreAws().Map()); err != nil {
-	// 	return fmt.Errorf("error setting tags: %s", err)
-	// }
-
-	// attributesResp, err := elbconn.DescribeLoadBalancerAttributes(&elbv2.DescribeLoadBalancerAttributesInput{
-	// 	LoadBalancerArn: aws.String(d.Id()),
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("Error retrieving LB Attributes: %s", err)
-	// }
-
-	// accessLogMap := map[string]interface{}{
-	// 	"bucket":  "",
-	// 	"enabled": false,
-	// 	"prefix":  "",
-	// }
-
-	// for _, attr := range attributesResp.Attributes {
-	// 	switch aws.StringValue(attr.Key) {
-	// 	case "access_logs.s3.enabled":
-	// 		accessLogMap["enabled"] = aws.StringValue(attr.Value) == "true"
-	// 	case "access_logs.s3.bucket":
-	// 		accessLogMap["bucket"] = aws.StringValue(attr.Value)
-	// 	case "access_logs.s3.prefix":
-	// 		accessLogMap["prefix"] = aws.StringValue(attr.Value)
-	// 	case "idle_timeout.timeout_seconds":
-	// 		timeout, err := strconv.Atoi(aws.StringValue(attr.Value))
-	// 		if err != nil {
-	// 			return fmt.Errorf("Error parsing ALB timeout: %s", err)
-	// 		}
-	// 		log.Printf("[DEBUG] Setting ALB Timeout Seconds: %d", timeout)
-	// 		d.Set("idle_timeout", timeout)
-	// 	case "routing.http.drop_invalid_header_fields.enabled":
-	// 		dropInvalidHeaderFieldsEnabled := aws.StringValue(attr.Value) == "true"
-	// 		log.Printf("[DEBUG] Setting LB Invalid Header Fields Enabled: %t", dropInvalidHeaderFieldsEnabled)
-	// 		d.Set("drop_invalid_header_fields", dropInvalidHeaderFieldsEnabled)
-	// 	case "deletion_protection.enabled":
-	// 		protectionEnabled := aws.StringValue(attr.Value) == "true"
-	// 		log.Printf("[DEBUG] Setting LB Deletion Protection Enabled: %t", protectionEnabled)
-	// 		d.Set("enable_deletion_protection", protectionEnabled)
-	// 	case "routing.http2.enabled":
-	// 		http2Enabled := aws.StringValue(attr.Value) == "true"
-	// 		log.Printf("[DEBUG] Setting ALB HTTP/2 Enabled: %t", http2Enabled)
-	// 		d.Set("enable_http2", http2Enabled)
-	// 	case "load_balancing.cross_zone.enabled":
-	// 		crossZoneLbEnabled := aws.StringValue(attr.Value) == "true"
-	// 		log.Printf("[DEBUG] Setting NLB Cross Zone Load Balancing Enabled: %t", crossZoneLbEnabled)
-	// 		d.Set("enable_cross_zone_load_balancing", crossZoneLbEnabled)
-	// 	}
-	// }
-	//
-	// if err := d.Set("access_logs", []interface{}{accessLogMap}); err != nil {
-	// 	return fmt.Errorf("error setting access_logs: %s", err)
-	// }
-
-	return nil
 }
 
 // Load balancers of type 'network' cannot have their subnets updated at

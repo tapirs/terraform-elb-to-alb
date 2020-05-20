@@ -283,29 +283,24 @@ func resourceElbtoalbElbCreate(d *schema.ResourceData, meta interface{}) error {
 	d.SetId(elbName)
 	log.Printf("[INFO] ELB ID: %s", d.Id())
 
-	// // Enable partial mode and record what we set
-	// d.Partial(true)
-	// d.SetPartial("name")
-	// d.SetPartial("internal")
-	// d.SetPartial("availability_zones")
-	// d.SetPartial("listener")
-	// d.SetPartial("security_groups")
-	// d.SetPartial("subnets")
-
 	if err := d.Set("tags", keyvaluetags.ElbKeyValueTags(tags).IgnoreAws().Map()); err != nil {
 		return fmt.Errorf("error setting tags: %s", err)
-	}
-
-	if err := resourceElbtoalbLbTargetGroupCreate(d, meta); err != nil {
-		return fmt.Errorf("error creating Lb: %s", err)
 	}
 
 	if err := resourceElbtoalbLbCreate(d, meta); err != nil {
 		return fmt.Errorf("error creating Lb Target Group: %s", err)
 	}
 
+	if err := resourceElbtoalbLbTargetGroupCreate(d, meta); err != nil {
+		return fmt.Errorf("error creating Lb: %s", err)
+	}
+
 	if err := resourceElbtoalbLbListenerCreate(d, meta); err != nil {
 		return fmt.Errorf("error creating Lb Listener: %s", err)
+	}
+
+	if err := resourceElbtoalbLbListenerRuleCreate(d, meta); err != nil {
+		return fmt.Errorf("error creating Lb Listener Rule: %s", err)
 	}
 
 	return nil

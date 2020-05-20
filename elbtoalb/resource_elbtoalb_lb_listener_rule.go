@@ -7,6 +7,11 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"math/rand"
+	"time"
+	"log"
+	"os"
+	"bufio"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -17,6 +22,9 @@ import (
 
 func resourceElbtoalbLbbListenerRule() *schema.Resource {
 	return &schema.Resource{
+		Create: resourceElbtoalbLbListenerRuleCreate,
+		Read: resourceElbtoalbLbListenerRuleRead,
+		Delete: resourceElbtoalbLbListenerRuleDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -41,6 +49,7 @@ func resourceElbtoalbLbbListenerRule() *schema.Resource {
 			"action": {
 				Type:     schema.TypeList,
 				Required: true,
+				ForceNew: true,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
 						"type": {
@@ -277,6 +286,7 @@ func resourceElbtoalbLbbListenerRule() *schema.Resource {
 			"condition": {
 				Type:     schema.TypeSet,
 				Required: true,
+				ForceNew: true,
 				Set:      lbListenerRuleConditionSetHash,
 				Elem: &schema.Resource{
 					Schema: map[string]*schema.Schema{
@@ -425,6 +435,96 @@ func resourceElbtoalbLbbListenerRule() *schema.Resource {
 		},
 	}
 }
+
+func resourceElbtoalbLbListenerRuleCreate(d *schema.ResourceData, meta interface{}) error {
+	log.Println("in lb listener rule create")
+
+	// Expand the "listener" set to aws-sdk-go compat []*elb.Listener
+	listeners, err := expandListeners(d.Get("listener").(*schema.Set).List())
+	if err != nil {
+		return err
+	}
+
+	for _, listener := range listeners {
+		log.Println(listener)
+
+		lbPort := *listener.LoadBalancerPort
+		instancePort := *listener.InstancePort
+
+		var listenerRuleName string
+		var listenerArn string
+		var targetGroupArn string
+		var hostHeader string
+		// var lbName string
+		if v, ok := d.GetOk("name"); ok {
+			listenerRuleName = strings.Replace(v.(string), "elb-", "listenerRule-", 1) + "-" + strconv.FormatInt(lbPort, 10) + "-" + strconv.FormatInt(instancePort, 10)
+			listenerArn = "aws_lb_listener." + "listener-" + strconv.FormatInt(lbPort, 10) + ".arn"
+			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
+			targetGroupArn = "aws_lb_target_group." + strings.Replace(v.(string), "elb-", "tg-", 1) + "-" + strconv.FormatInt(instancePort, 10) + ".arn"
+			hostHeader = "*" + strings.Replace(v.(string), "elb-", "", 1) + ".*.dwpcloud.uk"
+		}
+
+		targetGroupArn = strings.ReplaceAll(targetGroupArn, "-e2a-env-br", "")
+
+		resourceName := strings.ReplaceAll(listenerRuleName, "-e2a-env-br", "")
+		// lbName = strings.ReplaceAll(lbName, "-e2a-env", "")
+		// lbName = "lb"
+
+		err := os.MkdirAll("./lb_terraform/listener_rule", 0755)
+		if err != nil {
+	      return err
+	  }
+
+		f, err := os.Create(fmt.Sprintf("./lb_terraform/listener_rule/%s.tf", resourceName))
+		if err != nil {
+	      return err
+	  }
+
+		defer f.Close()
+
+		s1 := rand.NewSource(time.Now().UnixNano())
+    r1 := rand.New(s1)
+
+		w := bufio.NewWriter(f)
+	  _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_listener_rule\" \"%s\" {\nlistener_arn = %s\npriority = %d\n\naction {\ntype = \"forward\"\ntarget_group_arn = %s\n}\n\ncondition {\nhost_header {\nvalues = [\"%s\"]\n}\n}\n}", listenerRuleName, listenerArn, r1.Intn(50000), targetGroupArn, hostHeader))
+		if err != nil {
+	      return err
+	  }
+
+		w.Flush()
+
+		// lbf, err := os.OpenFile(fmt.Sprintf("./lb_terraform/%s.tf", lbName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		// if err != nil {
+	  //     return err
+	  // }
+		//
+		// defer lbf.Close()
+		//
+		// w = bufio.NewWriter(lbf)
+	  // _, err = w.WriteString(fmt.Sprintf("\n\nresource \"aws_lb_listener_rule\" \"%s\" {\nlistener_arn = \"%s\"\npriority = %d\n\naction {\ntype = \"forward\"\ntarget_group_arn = \"%s\"\n}\n\ncondition {\nhost_header {\nvalues = [\"%s\"]\n}\n}\n}", listenerRuleName, listenerArn, r1.Intn(50000), targetGroupArn, hostHeader))
+		// if err != nil {
+	  //     return err
+	  // }
+		//
+		// w.Flush()
+
+	}
+
+	return nil
+}
+
+func resourceElbtoalbLbListenerRuleRead(d *schema.ResourceData, meta interface{}) error {
+	log.Println("in read")
+
+	return nil
+}
+
+func resourceElbtoalbLbListenerRuleDelete(d *schema.ResourceData, meta interface{}) error {
+	log.Println("in delete")
+
+	return nil
+}
+
 
 /* DEPRECATED Backwards compatibility: This primarily exists to set a hash that handles the values to host_header or path_pattern migration.
 Can probably be removed on the next major version of the provider.
