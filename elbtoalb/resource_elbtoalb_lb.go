@@ -254,19 +254,9 @@ func resourceElbtoalbLb() *schema.Resource {
 func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	log.Println("in lb create")
 
-	// var lbName string
-	// if v, ok := d.GetOk("name"); ok {
-	// 	lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
-	// } else if v, ok := d.GetOk("name_prefix"); ok {
-	// 	lbName = resource.PrefixedUniqueId(v.(string))
-	// } else {
-	// 	lbName = resource.PrefixedUniqueId("tf-lb-")
-	// }
-
 	resourceElbtoalbLbRead(d, meta)
 
 	lbName := "lb-e2a-env-br"
-	// resourceName := strings.ReplaceAll(lbName, "-e2a-env", "")
 
 	internal := d.Get("internal")
 	cz_lb := d.Get("cross_zone_load_balancing")
@@ -306,7 +296,6 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 
 	access_logs.Prefix = lb.Name
 	access_logs.Enabled = true
-
 
 	// tags := "{\n"
 	// for key, val := range d.Get("tags").(map[string]interface {}) {
@@ -355,11 +344,6 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	lb.Access_logs = access_logs
 	lb.Tags = tags
 
-
-	// lb = append(lb, fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = \"%t\"\nload_balancer_type = \"application\"\nsecurity_groups = %v\nsubnets = %v\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\ntags = %v\n}", lbName, lbName, internal, security_groups, subnets, deletion_protection, cz_lb, idle_timeout, tags))
-
-	log.Println("Current lb is - " + fmt.Sprintf("%#v", lb))
-
 	err := os.MkdirAll("./lb_terraform/", 0755)
 	if err != nil {
       return err
@@ -372,84 +356,25 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 
 	w := bufio.NewWriter(f)
 
-	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n\ntags = {\ntags = \"%v\"\n}\n}", lb.Name, lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled, lb.Tags["tags"]))
+	// removed tags for now
+	// _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n\ntags = {\ntags = \"%v\"\n}\n}", lb.Name, lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled, lb.Tags["tags"]))
+	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n}", lb.Name, lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled))
+
 	if err != nil {
       return err
   }
 
 	w.Flush()
-	// } else {
-	// 	r, err := regexp.Compile(`(?s)security_groups = \[(.*?)\]`)
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 		return err
-	// 	}
-	// 	dat, err := ioutil.ReadFile(fmt.Sprintf("./lb_terraform/%s.tf", "lb"))
-	// 	if err != nil {
-	// 		log.Println(err)
-	// 		return err
-	// 	}
-	//
-	// 	var new_lb string
-	//
-	// 	log.Println("Before - " + string(dat))
-	// 	log.Println("sec matches - " + strings.Join(security_groups, ", "))
-	// 	if len(security_groups) > 1 {
-	// 		new_lb = r.ReplaceAllString(string(dat), "security_groups = [" + strings.Join(security_groups, ", ") + "]")
-	// 	} else {
-	// 		new_lb = string(dat)
-	// 	}
-	//
-	// 	log.Println("After - \"" + new_lb + "\"")
-	//
-	// 	if new_lb != "" {
-	// 		log.Println("Writing lb.tf with - " + new_lb)
-	// 		f, err := os.Create(fmt.Sprintf("./lb_terraform/%s.tf", "lb"))
-	// 		if err != nil {
-	// 	      return err
-	// 	  }
-	//
-	// 		w := bufio.NewWriter(f)
-	//
-	// 		_, err = w.WriteString(new_lb)
-	// 		if err != nil {
-	// 	      return err
-	// 	  }
-	// 	}
-	// }
 
 	return nil
 }
 
 func resourceElbtoalbLbRead(d *schema.ResourceData, meta interface{}) error {
-	log.Println("in read")
-
-	// lb, err := ioutil.ReadFile("./lb_terraform/lb.tf")
-	// if err != nil {
-	// 	log.Println(err)
-	// 	return err
-	// }
-	//
-	// r, err := regexp.Compile(`(?s)security_groups = \[\"(.*?)\"\]`)
-  // security_groups := r.FindSubmatch([]byte(lb))
-	//
-	// current_sec_groups := d.Get("security_groups").(*schema.Set)
-	//
-	// if len(security_groups) > 0 {
-	// 	log.Println("sec groups are " + string(security_groups[1]))
-	// 	log.Println("current sec groups are " + current_sec_groups.GoString())
-	// 	current_sec_groups.Add(string(security_groups[1]))
-	// }
-	//
-	// log.Println("current sec groups are now " + current_sec_groups.GoString())
-	//
-	// d.Set("security_groups", current_sec_groups)
 
 	return nil
 }
 
 func resourceElbtoalbLbDelete(d *schema.ResourceData, meta interface{}) error {
-	log.Println("in delete")
 
 	return nil
 }

@@ -343,18 +343,14 @@ func resourceElbtoalbLbListenerCreate(d *schema.ResourceData, meta interface{}) 
 
 		var listenerName string
 		var targetGroupArn string
-		// var lbName string
 		if v, ok := d.GetOk("name"); ok {
 			listenerName = "listener-" + strconv.FormatInt(lbPort, 10)
-			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
 
 			targetGroupArn = "aws_lb_target_group." + strings.Replace(v.(string), "elb-", "tg-", 1) + "-" + strconv.FormatInt(instancePort, 10) + ".arn"
 		}
 
 		targetGroupArn = strings.ReplaceAll(targetGroupArn, "-e2a-env-br", "")
 
-		// lbName = strings.ReplaceAll(lbName, "-e2a-env", "")
-		// lbName = "lb"
 
 		lbArn := "aws_lb.lb.arn"
 
@@ -381,21 +377,6 @@ func resourceElbtoalbLbListenerCreate(d *schema.ResourceData, meta interface{}) 
 		  }
 
 			w.Flush()
-
-			// lbf, err := os.OpenFile(fmt.Sprintf("./lb_terraform/%s.tf", lbName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-			// if err != nil {
-		  //   return err
-			// }
-			//
-			// defer lbf.Close()
-			//
-			// w = bufio.NewWriter(lbf)
-		  // _, err = w.WriteString(fmt.Sprintf("\n\nresource \"aws_lb_listener\" \"%s\" {\nload_balancer_arn = \"%s\"\nport = %d\nprotocol = \"%s\"\nssl_policy = \"ELBSecurityPolicy-2016-08\"\ncertificate_arn = \"%s\"\n\ndefault_action {\ntype = \"forward\"\ntarget_group_arn = \"%s\"\n}\n}", listenerName, lbArn, lbPort, lbProtocol, certificateArn, targetGroupArn))
-			// if err != nil {
-		  //     return err
-		  // }
-			//
-			// w.Flush()
 		}
 	}
 

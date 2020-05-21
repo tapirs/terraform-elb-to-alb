@@ -455,20 +455,15 @@ func resourceElbtoalbLbListenerRuleCreate(d *schema.ResourceData, meta interface
 		var listenerArn string
 		var targetGroupArn string
 		var hostHeader string
-		// var lbName string
 		if v, ok := d.GetOk("name"); ok {
 			listenerRuleName = strings.Replace(v.(string), "elb-", "listenerRule-", 1) + "-" + strconv.FormatInt(lbPort, 10) + "-" + strconv.FormatInt(instancePort, 10)
 			listenerArn = "aws_lb_listener." + "listener-" + strconv.FormatInt(lbPort, 10) + ".arn"
-			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
 			targetGroupArn = "aws_lb_target_group." + strings.Replace(v.(string), "elb-", "tg-", 1) + "-" + strconv.FormatInt(instancePort, 10) + ".arn"
 			hostHeader = "*" + strings.Replace(v.(string), "elb-", "", 1) + ".*.dwpcloud.uk"
 		}
 
 		targetGroupArn = strings.ReplaceAll(targetGroupArn, "-e2a-env-br", "")
-
 		resourceName := strings.ReplaceAll(listenerRuleName, "-e2a-env-br", "")
-		// lbName = strings.ReplaceAll(lbName, "-e2a-env", "")
-		// lbName = "lb"
 
 		err := os.MkdirAll("./lb_terraform/listener_rule", 0755)
 		if err != nil {
@@ -492,22 +487,6 @@ func resourceElbtoalbLbListenerRuleCreate(d *schema.ResourceData, meta interface
 	  }
 
 		w.Flush()
-
-		// lbf, err := os.OpenFile(fmt.Sprintf("./lb_terraform/%s.tf", lbName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		// if err != nil {
-	  //     return err
-	  // }
-		//
-		// defer lbf.Close()
-		//
-		// w = bufio.NewWriter(lbf)
-	  // _, err = w.WriteString(fmt.Sprintf("\n\nresource \"aws_lb_listener_rule\" \"%s\" {\nlistener_arn = \"%s\"\npriority = %d\n\naction {\ntype = \"forward\"\ntarget_group_arn = \"%s\"\n}\n\ncondition {\nhost_header {\nvalues = [\"%s\"]\n}\n}\n}", listenerRuleName, listenerArn, r1.Intn(50000), targetGroupArn, hostHeader))
-		// if err != nil {
-	  //     return err
-	  // }
-		//
-		// w.Flush()
-
 	}
 
 	return nil

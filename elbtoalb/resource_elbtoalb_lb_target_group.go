@@ -268,22 +268,15 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		}
 
 		var groupName string
-		// var lbName string
 		if v, ok := d.GetOk("name"); ok {
 			groupName = strings.Replace(v.(string), "elb-", "tg-", 1) + "-" + strconv.FormatInt(instancePort, 10)
-			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
 		} else if v, ok := d.GetOk("name_prefix"); ok {
 			groupName = resource.PrefixedUniqueId(v.(string))
-			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
 		} else {
 			groupName = resource.PrefixedUniqueId("tf-")
-			// lbName = strings.Replace(v.(string), "elb-", "lb-", 1)
 		}
 
 		resourceName := strings.ReplaceAll(groupName, "-e2a-env-br", "")
-		// lbName = strings.ReplaceAll(lbName, "-e2a-env", "")
-
-		// lbName = "lb"
 
 		err = os.MkdirAll("./lb_terraform/target_group", 0755)
 		if err != nil {
@@ -298,27 +291,12 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-    _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = \"vpc_id\"\n\nderegistration_delay = %d\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay))
+    _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = \"vpc_id\"\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = true\ninterval = 30\npath = \"/\"\nport = \"traffic-port\"\nprotocol = \"%s\"\ntimeout = 6\nhealthy_threshold = 3\nunhealthy_threshold = 3\nmatcher = \"200\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, instanceProtocol))
 		if err != nil {
         return err
     }
 
 		w.Flush()
-
-		// lbf, err := os.OpenFile(fmt.Sprintf("./lb_terraform/%s.tf", lbName), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
-		// if err != nil {
-		// 	return err
-		// }
-		//
-		// defer f.Close()
-		//
-		// w = bufio.NewWriter(lbf)
-		// _, err = w.WriteString(fmt.Sprintf("\n\nresource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = \"vpc_id\"\n\nderegistration_delay = %d\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay))
-		// if err != nil {
-		// 		return err
-		// }
-		//
-		// w.Flush()
 	}
 
 	return nil

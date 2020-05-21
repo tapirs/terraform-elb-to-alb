@@ -1,4 +1,4 @@
-package main
+package elbtoalbtools
 
 import (
   "fmt"
@@ -15,7 +15,7 @@ import (
 var postMappings map[string]string
 var myMappings map[string]string
 
-func post() error {
+func Post() error {
   log.Println("post")
 
   postMappings = make(map[string]string, 0)
@@ -29,7 +29,7 @@ func post() error {
 }
 
 func readMyMappings() error {
-  file, err := os.Open("elbtoalb/myMappings.txt")
+  file, err := os.Open("elbtoalb-output/myMappings.txt")
   if err != nil {
     log.Println(err)
     return err
@@ -59,7 +59,7 @@ func readMyMappings() error {
 }
 
 func readMappings() error {
-  file, err := os.Open("elbtoalb/mappings.txt")
+  file, err := os.Open("elbtoalb-output/mappings.txt")
   if err != nil {
     log.Println(err)
     return err
@@ -97,7 +97,7 @@ func readMappings() error {
 }
 
 func readTFFiles() error {
-  err := filepath.Walk("./elbtoalb/lb_terraform",
+  err := filepath.Walk("./elbtoalb-output/lb_terraform",
     func(path string, info os.FileInfo, err error) error {
     if err != nil {
         return err
@@ -121,8 +121,8 @@ func readTFFiles() error {
 
       log.Println("path is - " + path)
 
-      if path != "elbtoalb/lb_terraform/lb.tf" {
-        err = appendTFFile("./elbtoalb/lb_terraform/lb.tf", replaced)
+      if path != "elbtoalb-output/lb_terraform/lb.tf" {
+        err = appendTFFile("./elbtoalb-output/lb_terraform/lb.tf", replaced)
         if err != nil {
           log.Println(err)
           return err

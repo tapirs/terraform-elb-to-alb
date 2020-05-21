@@ -1,4 +1,4 @@
-package main
+package elbtoalbtools
 
 import (
   "log"
@@ -45,13 +45,13 @@ type Issue struct {
   }
 }
 
-func pre() error {
+func Pre() error {
   log.Println("pre")
 
   mappings = make(map[string]string, 0)
   mappings["aws_elb"] = "elbtoalb_elb"
 
-  err := os.MkdirAll("./elbtoalb", 0755)
+  err := os.MkdirAll("./elbtoalb-output", 0755)
 	if err != nil {
     log.Println(err)
     return err
@@ -212,7 +212,7 @@ func replaceMappings(match string) string {
 
 func validateTerraform() error {
   cmd := exec.Command("bash")
-  cmd.Stdin = strings.NewReader("cd elbtoalb; terraform init -no-color")
+  cmd.Stdin = strings.NewReader("cd elbtoalb-output; terraform init -no-color")
 
   if err := cmd.Run(); err != nil {
 		log.Println(err)
@@ -220,7 +220,7 @@ func validateTerraform() error {
 	}
 
   cmd = exec.Command("bash")
-  cmd.Stdin = strings.NewReader("cd elbtoalb; terraform validate -json -no-color")
+  cmd.Stdin = strings.NewReader("cd elbtoalb-output; terraform validate -json -no-color")
 
   stdout, err := cmd.StdoutPipe()
   if err != nil {
@@ -389,7 +389,7 @@ func mapTags(match string) (string, error) {
 }
 
 func createOutput(output []string) error {
-  f, err := os.Create("./elbtoalb/elbtoalb.tf")
+  f, err := os.Create("./elbtoalb-output/elbtoalb.tf")
 	if err != nil {
       return err
   }
@@ -409,7 +409,7 @@ func createOutput(output []string) error {
 }
 
 func createMappingsOutput() error {
-  f, err := os.Create("./elbtoalb/mappings.txt")
+  f, err := os.Create("./elbtoalb-output/mappings.txt")
 	if err != nil {
       return err
   }
