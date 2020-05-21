@@ -45,7 +45,7 @@ type Issue struct {
   }
 }
 
-func Pre() error {
+func Pre(tf_dir string) error {
   log.Println("pre")
 
   mappings = make(map[string]string, 0)
@@ -57,7 +57,7 @@ func Pre() error {
     return err
   }
 
-  err = filepath.Walk("./searchlight",
+  err = filepath.Walk(tf_dir,
     func(path string, info os.FileInfo, err error) error {
     if err != nil {
         return err

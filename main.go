@@ -13,12 +13,13 @@ func main() {
 
 	prePtr := flag.Bool("pre", false, "Run the pre stage")
   postPtr := flag.Bool("post", false, "Run the post stage")
+	dirPtr := flag.String("tf_dir", "./", "Directory containing terraform files")
 
   flag.Parse()
 
   if *prePtr {
     fmt.Println("pre")
-    elbtoalbtools.Pre()
+    elbtoalbtools.Pre(*dirPtr)
   } else if *postPtr {
     fmt.Println("post")
     elbtoalbtools.Post()

@@ -14,11 +14,13 @@
 # Dependency directories (remove the comment below to include it)
 # vendor/
 
+elbtoalb-output
+terraform-provider-elbtoalb
 lb_terraform/
 crash.log
 terraform.tfstate*
 .terraform
-searchlight
+searchlight*
 test/.terraform
 crash.log
 mappings.txt
