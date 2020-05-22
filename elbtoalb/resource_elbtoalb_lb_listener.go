@@ -1,14 +1,14 @@
 package elbtoalb
 
 import (
+	"bufio"
+	"fmt"
+	"log"
+	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
-	"log"
-	"strconv"
-	"os"
-	"fmt"
-	"bufio"
 
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -18,7 +18,7 @@ import (
 func resourceElbtoalbLbListener() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceElbtoalbLbListenerCreate,
-		Read: resourceElbtoalbLbListenerRead,
+		Read:   resourceElbtoalbLbListenerRead,
 		Delete: resourceElbtoalbLbListenerDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
@@ -43,7 +43,7 @@ func resourceElbtoalbLbListener() *schema.Resource {
 			"port": {
 				Type:         schema.TypeInt,
 				Required:     true,
-				ForceNew: true,
+				ForceNew:     true,
 				ValidateFunc: validation.IntBetween(1, 65535),
 			},
 
@@ -351,7 +351,6 @@ func resourceElbtoalbLbListenerCreate(d *schema.ResourceData, meta interface{}) 
 
 		targetGroupArn = strings.ReplaceAll(targetGroupArn, "-e2a-env-br", "")
 
-
 		lbArn := "aws_lb.lb.arn"
 
 		certificateArn := *listener.SSLCertificateId
@@ -360,21 +359,21 @@ func resourceElbtoalbLbListenerCreate(d *schema.ResourceData, meta interface{}) 
 
 			err := os.MkdirAll("./lb_terraform/listener", 0755)
 			if err != nil {
-		      return err
-		  }
+				return err
+			}
 
 			f, err := os.Create(fmt.Sprintf("./lb_terraform/listener/%s.tf", listenerName))
 			if err != nil {
-		      return err
-		  }
+				return err
+			}
 
 			defer f.Close()
 
 			w := bufio.NewWriter(f)
-		  _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_listener\" \"%s\" {\nload_balancer_arn = %s\nport = %d\nprotocol = \"%s\"\nssl_policy = \"%s\"\ncertificate_arn = \"%s\"\n\ndefault_action {\ntype = \"forward\"\ntarget_group_arn = %s\n}\n}", listenerName, lbArn, lbPort, lbProtocol, lbSSL, certificateArn, targetGroupArn))
+			_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_listener\" \"%s\" {\nload_balancer_arn = %s\nport = %d\nprotocol = \"%s\"\nssl_policy = \"%s\"\ncertificate_arn = \"%s\"\n\ndefault_action {\ntype = \"forward\"\ntarget_group_arn = %s\n}\n}", listenerName, lbArn, lbPort, lbProtocol, lbSSL, certificateArn, targetGroupArn))
 			if err != nil {
-		      return err
-		  }
+				return err
+			}
 
 			w.Flush()
 		}
@@ -396,11 +395,11 @@ func resourceElbtoalbLbListenerDelete(d *schema.ResourceData, meta interface{}) 
 }
 
 func fileExists(filename string) bool {
-    info, err := os.Stat(filename)
-    if os.IsNotExist(err) {
-        return false
-    }
-    return !info.IsDir()
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
 
 func suppressIfDefaultActionTypeNot(t string) schema.SchemaDiffSuppressFunc {

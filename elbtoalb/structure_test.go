@@ -410,7 +410,6 @@ func TestFlattenHealthCheck(t *testing.T) {
 	}
 }
 
-
 func TestExpandStringList(t *testing.T) {
 	expanded := []interface{}{"us-east-1a", "us-east-1b"}
 	stringList := expandStringList(expanded)
@@ -443,7 +442,6 @@ func TestExpandStringListEmptyItems(t *testing.T) {
 			expected)
 	}
 }
-
 
 func TestExpandInstanceString(t *testing.T) {
 

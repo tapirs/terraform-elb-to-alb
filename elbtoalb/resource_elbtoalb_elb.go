@@ -1,20 +1,16 @@
 package elbtoalb
 
 import (
-	"log"
 	"bytes"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/awserr"
-	"github.com/aws/aws-sdk-go/service/ec2"
-	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/tapirs/terraform-elb-to-alb/elbtoalb/internal/keyvaluetags"
 )
@@ -23,7 +19,7 @@ func resourceElbtoalbElb() *schema.Resource {
 	log.Println("in resource elb")
 	return &schema.Resource{
 		Create: resourceElbtoalbElbCreate,
-		Read: resourceElbtoalbElbRead,
+		Read:   resourceElbtoalbElbRead,
 		Delete: resourceElbtoalbElbDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
@@ -111,7 +107,7 @@ func resourceElbtoalbElb() *schema.Resource {
 			"idle_timeout": {
 				Type:         schema.TypeInt,
 				Optional:     true,
-				ForceNew: 		true,
+				ForceNew:     true,
 				Default:      60,
 				ValidateFunc: validation.IntBetween(1, 4000),
 			},
@@ -250,7 +246,7 @@ func resourceElbtoalbElb() *schema.Resource {
 				Computed: true,
 			},
 
-			"tags": tagsSchemaForceNew(),
+			// "tags": tagsSchemaForceNew(),
 		},
 	}
 }
@@ -275,7 +271,10 @@ func resourceElbtoalbElbCreate(d *schema.ResourceData, meta interface{}) error {
 		} else {
 			elbName = resource.PrefixedUniqueId("tf-lb-")
 		}
-		d.Set("name", elbName)
+		err = d.Set("name", elbName)
+		if err != nil {
+			return err
+		}
 	}
 
 	tags := keyvaluetags.New(d.Get("tags").(map[string]interface{})).IgnoreAws().ElbTags()
@@ -283,7 +282,7 @@ func resourceElbtoalbElbCreate(d *schema.ResourceData, meta interface{}) error {
 	d.SetId(elbName)
 	log.Printf("[INFO] ELB ID: %s", d.Id())
 
-	if err := d.Set("tags", keyvaluetags.ElbKeyValueTags(tags).IgnoreAws().Map()); err != nil {
+	if err = d.Set("tags", keyvaluetags.ElbKeyValueTags(tags).IgnoreAws().Map()); err != nil {
 		return fmt.Errorf("error setting tags: %s", err)
 	}
 
@@ -318,101 +317,6 @@ func resourceElbtoalbElbDelete(d *schema.ResourceData, meta interface{}) error {
 	return nil
 }
 
-// flattenAwsELbResource takes a *elbv2.LoadBalancer and populates all respective resource fields.
-func flattenAwsELbResource(d *schema.ResourceData, ec2conn *ec2.EC2, elbconn *elb.ELB, lb *elb.LoadBalancerDescription) error {
-	describeAttrsOpts := &elb.DescribeLoadBalancerAttributesInput{
-		LoadBalancerName: aws.String(d.Id()),
-	}
-	describeAttrsResp, err := elbconn.DescribeLoadBalancerAttributes(describeAttrsOpts)
-	if err != nil {
-		return fmt.Errorf("Error retrieving ELB: %s", err)
-	}
-
-	lbAttrs := describeAttrsResp.LoadBalancerAttributes
-
-	d.Set("name", lb.LoadBalancerName)
-	d.Set("dns_name", lb.DNSName)
-	d.Set("zone_id", lb.CanonicalHostedZoneNameID)
-
-	var scheme bool
-	if lb.Scheme != nil {
-		scheme = *lb.Scheme == "internal"
-	}
-	d.Set("internal", scheme)
-	d.Set("availability_zones", flattenStringList(lb.AvailabilityZones))
-	d.Set("instances", flattenInstances(lb.Instances))
-	d.Set("listener", flattenListeners(lb.ListenerDescriptions))
-	d.Set("security_groups", flattenStringList(lb.SecurityGroups))
-	// if lb.SourceSecurityGroup != nil {
-	// 	group := lb.SourceSecurityGroup.GroupName
-	// 	if lb.SourceSecurityGroup.OwnerAlias != nil && *lb.SourceSecurityGroup.OwnerAlias != "" {
-	// 		group = aws.String(*lb.SourceSecurityGroup.OwnerAlias + "/" + *lb.SourceSecurityGroup.GroupName)
-	// 	}
-	// 	d.Set("source_security_group", group)
-	//
-	// 	// Manually look up the ELB Security Group ID, since it's not provided
-	// 	var elbVpc string
-	// 	if lb.VPCId != nil {
-	// 		elbVpc = *lb.VPCId
-	// 		sgId, err := sourceSGIdByName(ec2conn, *lb.SourceSecurityGroup.GroupName, elbVpc)
-	// 		if err != nil {
-	// 			return fmt.Errorf("Error looking up ELB Security Group ID: %s", err)
-	// 		} else {
-	// 			d.Set("source_security_group_id", sgId)
-	// 		}
-	// 	}
-	// }
-	d.Set("subnets", flattenStringList(lb.Subnets))
-	if lbAttrs.ConnectionSettings != nil {
-		d.Set("idle_timeout", lbAttrs.ConnectionSettings.IdleTimeout)
-	}
-	d.Set("connection_draining", lbAttrs.ConnectionDraining.Enabled)
-	d.Set("connection_draining_timeout", lbAttrs.ConnectionDraining.Timeout)
-	d.Set("cross_zone_load_balancing", lbAttrs.CrossZoneLoadBalancing.Enabled)
-	if lbAttrs.AccessLog != nil {
-		// The AWS API does not allow users to remove access_logs, only disable them.
-		// During creation of the ELB, Terraform sets the access_logs to disabled,
-		// so there should not be a case where lbAttrs.AccessLog above is nil.
-
-		// Here we do not record the remove value of access_log if:
-		// - there is no access_log block in the configuration
-		// - the remote access_logs are disabled
-		//
-		// This indicates there is no access_log in the configuration.
-		// - externally added access_logs will be enabled, so we'll detect the drift
-		// - locally added access_logs will be in the config, so we'll add to the
-		// API/state
-		// See https://github.com/hashicorp/terraform/issues/10138
-		_, n := d.GetChange("access_logs")
-		elbal := lbAttrs.AccessLog
-		nl := n.([]interface{})
-		if len(nl) == 0 && !*elbal.Enabled {
-			elbal = nil
-		}
-		if err := d.Set("access_logs", flattenAccessLog(elbal)); err != nil {
-			return err
-		}
-	}
-
-	tags, err := keyvaluetags.ElbListTags(elbconn, d.Id())
-
-	if err != nil {
-		return fmt.Errorf("error listing tags for ELB (%s): %s", d.Id(), err)
-	}
-
-	if err := d.Set("tags", tags.IgnoreAws().Map()); err != nil {
-		return fmt.Errorf("error setting tags: %s", err)
-	}
-
-	// There's only one health check, so save that to state as we
-	// currently can
-	if *lb.HealthCheck.Target != "" {
-		d.Set("health_check", flattenHealthCheck(lb.HealthCheck))
-	}
-
-	return nil
-}
-
 func resourceElbtoalbElbListenerHash(v interface{}) int {
 	var buf bytes.Buffer
 	m := v.(map[string]interface{})
@@ -428,11 +332,6 @@ func resourceElbtoalbElbListenerHash(v interface{}) int {
 	}
 
 	return hashcode.String(buf.String())
-}
-
-func isLoadBalancerNotFound(err error) bool {
-	elberr, ok := err.(awserr.Error)
-	return ok && elberr.Code() == elb.ErrCodeAccessPointNotFoundException
 }
 
 func validateAccessLogsInterval(v interface{}, k string) (ws []string, errors []error) {

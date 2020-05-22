@@ -9,8 +9,6 @@ import (
 
 	"github.com/aws/aws-sdk-go/aws/arn"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
 const (
@@ -62,40 +60,6 @@ func validateTypeStringNullableFloat(v interface{}, k string) (ws []string, es [
 		es = append(es, fmt.Errorf("%s: cannot parse '%s' as float: %s", k, value, err))
 	}
 
-	return
-}
-
-func validateTransferServerID(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-
-	// https://docs.aws.amazon.com/transfer/latest/userguide/API_CreateUser.html
-	pattern := `^s-([0-9a-f]{17})$`
-	if !regexp.MustCompile(pattern).MatchString(value) {
-		errors = append(errors, fmt.Errorf(
-			"%q isn't a valid transfer server id (only lowercase alphanumeric characters are allowed): %q",
-			k, value))
-	}
-
-	return
-}
-
-func validateTransferUserName(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	// https://docs.aws.amazon.com/transfer/latest/userguide/API_CreateUser.html
-	if !regexp.MustCompile(`^[a-zA-Z0-9_][a-zA-Z0-9_-]{2,31}$`).MatchString(value) {
-		errors = append(errors, fmt.Errorf("Invalid %q: must be between 3 and 32 alphanumeric or special characters hyphen and underscore. However, %q cannot begin with a hyphen", k, k))
-	}
-	return
-}
-
-// validateTagFilters confirms the "value" component of a tag filter is one of
-// AWS's three allowed types.
-func validateTagFilters(v interface{}, k string) (ws []string, errors []error) {
-	value := v.(string)
-	if value != "KEY_ONLY" && value != "VALUE_ONLY" && value != "KEY_AND_VALUE" {
-		errors = append(errors, fmt.Errorf(
-			"%q must be one of \"KEY_ONLY\", \"VALUE_ONLY\", or \"KEY_AND_VALUE\"", k))
-	}
 	return
 }
 
@@ -227,19 +191,6 @@ func validateCIDRNetworkAddress(v interface{}, k string) (ws []string, errors []
 	}
 
 	return
-}
-
-func validateHTTPMethod() schema.SchemaValidateFunc {
-	return validation.StringInSlice([]string{
-		"ANY",
-		"DELETE",
-		"GET",
-		"HEAD",
-		"OPTIONS",
-		"PATCH",
-		"POST",
-		"PUT",
-	}, false)
 }
 
 func validateLogMetricFilterName(v interface{}, k string) (ws []string, errors []error) {

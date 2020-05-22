@@ -12,18 +12,24 @@ import (
 func main() {
 
 	prePtr := flag.Bool("pre", false, "Run the pre stage")
-  postPtr := flag.Bool("post", false, "Run the post stage")
+	postPtr := flag.Bool("post", false, "Run the post stage")
 	dirPtr := flag.String("tf_dir", "./", "Directory containing terraform files")
 
-  flag.Parse()
+	flag.Parse()
 
-  if *prePtr {
-    fmt.Println("pre")
-    elbtoalbtools.Pre(*dirPtr)
-  } else if *postPtr {
-    fmt.Println("post")
-    elbtoalbtools.Post()
-  } else {
+	if *prePtr {
+		fmt.Println("pre")
+		err := elbtoalbtools.Pre(*dirPtr)
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else if *postPtr {
+		fmt.Println("post")
+		err := elbtoalbtools.Post()
+		if err != nil {
+			fmt.Println(err)
+		}
+	} else {
 		plugin.Serve(&plugin.ServeOpts{
 			ProviderFunc: elbtoalb.Provider})
 	}

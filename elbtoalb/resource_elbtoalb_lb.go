@@ -4,11 +4,11 @@ import (
 	"bytes"
 	"fmt"
 	// "regexp"
-	"time"
+	"bufio"
 	"log"
 	"os"
-	"bufio"
 	"strings"
+	"time"
 	// "io/ioutil"
 
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -19,15 +19,15 @@ import (
 )
 
 type LB struct {
-	Name string
-	Internal bool
+	Name               string
+	Internal           bool
 	Load_balancer_type string
-	Security_groups []string
-	Subnets []string
+	Security_groups    []string
+	Subnets            []string
 
-	Enable_deletion_protection bool
+	Enable_deletion_protection       bool
 	Enable_cross_zone_load_balancing bool
-	Idle_timeout int
+	Idle_timeout                     int
 
 	Access_logs Access_logs
 
@@ -35,8 +35,8 @@ type LB struct {
 }
 
 type Access_logs struct {
-	Bucket string
-	Prefix string
+	Bucket  string
+	Prefix  string
 	Enabled bool
 }
 
@@ -46,9 +46,9 @@ func resourceElbtoalbLb() *schema.Resource {
 	return &schema.Resource{
 		// Subnets are ForceNew for Network Load Balancers
 		CustomizeDiff: customizeDiffNLBSubnets,
-		Create: resourceElbtoalbLbCreate,
-		Read: resourceElbtoalbLbRead,
-		Delete: resourceElbtoalbLbDelete,
+		Create:        resourceElbtoalbLbCreate,
+		Read:          resourceElbtoalbLbRead,
+		Delete:        resourceElbtoalbLbDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -154,7 +154,7 @@ func resourceElbtoalbLb() *schema.Resource {
 			"access_logs": {
 				Type:             schema.TypeList,
 				Optional:         true,
-				ForceNew: true,
+				ForceNew:         true,
 				MaxItems:         1,
 				DiffSuppressFunc: suppressMissingOptionalConfigurationBlock,
 				Elem: &schema.Resource{
@@ -192,7 +192,7 @@ func resourceElbtoalbLb() *schema.Resource {
 			"idle_timeout": {
 				Type:             schema.TypeInt,
 				Optional:         true,
-				ForceNew: true,
+				ForceNew:         true,
 				Default:          60,
 				DiffSuppressFunc: suppressIfLBType(elbv2.LoadBalancerTypeEnumNetwork),
 			},
@@ -200,7 +200,7 @@ func resourceElbtoalbLb() *schema.Resource {
 			"drop_invalid_header_fields": {
 				Type:             schema.TypeBool,
 				Optional:         true,
-				ForceNew: true,
+				ForceNew:         true,
 				Default:          false,
 				DiffSuppressFunc: suppressIfLBType("network"),
 			},
@@ -208,7 +208,7 @@ func resourceElbtoalbLb() *schema.Resource {
 			"enable_cross_zone_load_balancing": {
 				Type:             schema.TypeBool,
 				Optional:         true,
-				ForceNew: true,
+				ForceNew:         true,
 				Default:          false,
 				DiffSuppressFunc: suppressIfLBType(elbv2.LoadBalancerTypeEnumApplication),
 			},
@@ -216,7 +216,7 @@ func resourceElbtoalbLb() *schema.Resource {
 			"enable_http2": {
 				Type:             schema.TypeBool,
 				Optional:         true,
-				ForceNew: true,
+				ForceNew:         true,
 				Default:          true,
 				DiffSuppressFunc: suppressIfLBType(elbv2.LoadBalancerTypeEnumNetwork),
 			},
@@ -246,7 +246,7 @@ func resourceElbtoalbLb() *schema.Resource {
 				Computed: true,
 			},
 
-			"tags": tagsSchemaForceNew(),
+			// "tags": tagsSchemaForceNew(),
 		},
 	}
 }
@@ -254,14 +254,16 @@ func resourceElbtoalbLb() *schema.Resource {
 func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	log.Println("in lb create")
 
-	resourceElbtoalbLbRead(d, meta)
+	err := resourceElbtoalbLbRead(d, meta)
+	if err != nil {
+		return err
+	}
 
 	lbName := "lb-e2a-env-br"
 
 	internal := d.Get("internal")
 	cz_lb := d.Get("cross_zone_load_balancing")
 	idle_timeout := d.Get("idle_timeout")
-
 
 	security_groups_list := expandStringSet(d.Get("security_groups").(*schema.Set))
 	security_groups := lb.Security_groups
@@ -282,11 +284,11 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 
 	deletion_protection := true
 
-	access_logs_list := d.Get("access_logs").([]interface {})
+	access_logs_list := d.Get("access_logs").([]interface{})
 	var access_logs Access_logs
 	access_logs.Bucket = lb.Access_logs.Bucket
 	if len(access_logs_list) > 0 {
-		for key, val := range access_logs_list[0].(map[string]interface {}) {
+		for key, val := range access_logs_list[0].(map[string]interface{}) {
 			if key == "bucket" {
 				access_logs.Bucket = val.(string)
 				break
@@ -301,16 +303,16 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	// for key, val := range d.Get("tags").(map[string]interface {}) {
 	// 	var s string
 	// 	switch val.(type) {
-  //   case int:
+	//   case int:
 	// 		s = fmt.Sprintf("%s = %d", key, val)
-  //   case float64:
+	//   case float64:
 	// 		s = fmt.Sprintf("%s = %d", key, val)
-  //   case string:
+	//   case string:
 	// 		val = strings.Replace(val.(string), "elb", "lb", 1)
 	// 		s = fmt.Sprintf("%s = \"%s\"", key, val)
-  //   case bool:
+	//   case bool:
 	// 		s = fmt.Sprintf("%s = %t", key, val)
-  //   }
+	//   }
 	// 	tags = tags + s + "\n"
 	// }
 	// tags = tags + "}"
@@ -322,7 +324,7 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 		tags = lb.Tags
 	}
 
-	for key, val := range d.Get("tags").(map[string]interface {}) {
+	for key, val := range d.Get("tags").(map[string]interface{}) {
 		log.Println("Tag is - " + key + ":" + val.(string))
 		if tags[key] != nil {
 			tags[key] = tags[key].(string) + val.(string) + " "
@@ -331,7 +333,6 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 
 	}
-
 
 	lb.Name = lbName
 	lb.Internal = internal.(bool)
@@ -344,15 +345,15 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	lb.Access_logs = access_logs
 	lb.Tags = tags
 
-	err := os.MkdirAll("./lb_terraform/", 0755)
+	err = os.MkdirAll("./lb_terraform/", 0755)
 	if err != nil {
-      return err
-  }
+		return err
+	}
 
 	f, err := os.Create("./lb_terraform/lb.tf")
 	if err != nil {
-      return err
-  }
+		return err
+	}
 
 	w := bufio.NewWriter(f)
 
@@ -361,8 +362,8 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n}", lb.Name, lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled))
 
 	if err != nil {
-      return err
-  }
+		return err
+	}
 
 	w.Flush()
 
