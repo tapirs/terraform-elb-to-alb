@@ -1,9 +1,9 @@
 package elbtoalb
 
 import (
-	"log"
 	"bytes"
 	"fmt"
+	"log"
 	"regexp"
 	"strconv"
 	"strings"
@@ -13,8 +13,8 @@ import (
 	"github.com/aws/aws-sdk-go/service/ec2"
 	"github.com/aws/aws-sdk-go/service/elb"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/hashcode"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 	"github.com/tapirs/terraform-elb-to-alb/elbtoalb/internal/keyvaluetags"
 )
@@ -23,7 +23,7 @@ func resourceElbtoalbElb() *schema.Resource {
 	log.Println("in resource elb")
 	return &schema.Resource{
 		Create: resourceElbtoalbElbCreate,
-		Read: resourceElbtoalbElbRead,
+		Read:   resourceElbtoalbElbRead,
 		Delete: resourceElbtoalbElbDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
@@ -111,7 +111,7 @@ func resourceElbtoalbElb() *schema.Resource {
 			"idle_timeout": {
 				Type:         schema.TypeInt,
 				Optional:     true,
-				ForceNew: 		true,
+				ForceNew:     true,
 				Default:      60,
 				ValidateFunc: validation.IntBetween(1, 4000),
 			},

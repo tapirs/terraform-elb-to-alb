@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/aws/aws-sdk-go/service/elb"
-
 )
 
 func policyAttributesToMap(attributes *[]*elb.PolicyAttributeDescription) map[string]string {

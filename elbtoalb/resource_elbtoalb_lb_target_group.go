@@ -1,18 +1,18 @@
 package elbtoalb
 
 import (
-	"log"
+	"bufio"
 	"fmt"
+	"log"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
-	"bufio"
-	"os"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
-	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
+	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
@@ -20,9 +20,9 @@ func resourceElbtoalbLbTargetGroup() *schema.Resource {
 	return &schema.Resource{
 		// NLBs have restrictions on them at this time
 		CustomizeDiff: resourceElbtoalbLbTargetGroupCustomizeDiff,
-		Create: resourceElbtoalbLbTargetGroupCreate,
-		Read: resourceElbtoalbLbTargetGroupRead,
-		Delete: resourceElbtoalbLbTargetGroupDelete,
+		Create:        resourceElbtoalbLbTargetGroupCreate,
+		Read:          resourceElbtoalbLbTargetGroupRead,
+		Delete:        resourceElbtoalbLbTargetGroupDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
 		},
@@ -92,7 +92,7 @@ func resourceElbtoalbLbTargetGroup() *schema.Resource {
 			"slow_start": {
 				Type:         schema.TypeInt,
 				Optional:     true,
-				ForceNew:      true,
+				ForceNew:     true,
 				Default:      0,
 				ValidateFunc: validateSlowStart,
 			},
@@ -280,21 +280,21 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 
 		err = os.MkdirAll("./lb_terraform/target_group", 0755)
 		if err != nil {
-        return err
-    }
+			return err
+		}
 
 		f, err := os.Create(fmt.Sprintf("./lb_terraform/target_group/%s.tf", resourceName))
 		if err != nil {
-        return err
-    }
+			return err
+		}
 
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-    _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = vpc-id\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = true\ninterval = 30\npath = \"/\"\nport = \"traffic-port\"\nprotocol = \"%s\"\ntimeout = 6\nhealthy_threshold = 3\nunhealthy_threshold = 3\nmatcher = \"200\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, instanceProtocol))
+		_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = vpc-id\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = true\ninterval = 30\npath = \"/\"\nport = \"traffic-port\"\nprotocol = \"%s\"\ntimeout = 6\nhealthy_threshold = 3\nunhealthy_threshold = 3\nmatcher = \"200\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, instanceProtocol))
 		if err != nil {
-        return err
-    }
+			return err
+		}
 
 		w.Flush()
 	}
@@ -313,7 +313,6 @@ func resourceElbtoalbLbTargetGroupDelete(d *schema.ResourceData, meta interface{
 
 	return nil
 }
-
 
 func suppressIfTargetType(t string) schema.SchemaDiffSuppressFunc {
 	return func(k string, old string, new string, d *schema.ResourceData) bool {

@@ -1,17 +1,17 @@
 package elbtoalb
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"log"
+	"math/rand"
+	"os"
 	"regexp"
 	"sort"
 	"strconv"
 	"strings"
-	"math/rand"
 	"time"
-	"log"
-	"os"
-	"bufio"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -23,7 +23,7 @@ import (
 func resourceElbtoalbLbbListenerRule() *schema.Resource {
 	return &schema.Resource{
 		Create: resourceElbtoalbLbListenerRuleCreate,
-		Read: resourceElbtoalbLbListenerRuleRead,
+		Read:   resourceElbtoalbLbListenerRuleRead,
 		Delete: resourceElbtoalbLbListenerRuleDelete,
 		Importer: &schema.ResourceImporter{
 			State: schema.ImportStatePassthrough,
@@ -467,24 +467,24 @@ func resourceElbtoalbLbListenerRuleCreate(d *schema.ResourceData, meta interface
 
 		err := os.MkdirAll("./lb_terraform/listener_rule", 0755)
 		if err != nil {
-	      return err
-	  }
+			return err
+		}
 
 		f, err := os.Create(fmt.Sprintf("./lb_terraform/listener_rule/%s.tf", resourceName))
 		if err != nil {
-	      return err
-	  }
+			return err
+		}
 
 		defer f.Close()
 
 		s1 := rand.NewSource(time.Now().UnixNano())
-    r1 := rand.New(s1)
+		r1 := rand.New(s1)
 
 		w := bufio.NewWriter(f)
-	  _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_listener_rule\" \"%s\" {\nlistener_arn = %s\npriority = %d\n\naction {\ntype = \"forward\"\ntarget_group_arn = %s\n}\n\ncondition {\nhost_header {\nvalues = [\"%s\"]\n}\n}\n}", listenerRuleName, listenerArn, r1.Intn(50000), targetGroupArn, hostHeader))
+		_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_listener_rule\" \"%s\" {\nlistener_arn = %s\npriority = %d\n\naction {\ntype = \"forward\"\ntarget_group_arn = %s\n}\n\ncondition {\nhost_header {\nvalues = [\"%s\"]\n}\n}\n}", listenerRuleName, listenerArn, r1.Intn(50000), targetGroupArn, hostHeader))
 		if err != nil {
-	      return err
-	  }
+			return err
+		}
 
 		w.Flush()
 	}
@@ -503,7 +503,6 @@ func resourceElbtoalbLbListenerRuleDelete(d *schema.ResourceData, meta interface
 
 	return nil
 }
-
 
 /* DEPRECATED Backwards compatibility: This primarily exists to set a hash that handles the values to host_header or path_pattern migration.
 Can probably be removed on the next major version of the provider.

@@ -1,21 +1,18 @@
 package elbtoalb
 
 import (
-	"testing"
-	"os"
 	"log"
-
+	"os"
+	"testing"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
 	"github.com/hashicorp/terraform-plugin-sdk/terraform"
 )
 
-
-
 func TestProvider(t *testing.T) {
-    if err := Provider().(*schema.Provider).InternalValidate(); err != nil {
-        t.Fatalf("err: %s", err)
-    }
+	if err := Provider().(*schema.Provider).InternalValidate(); err != nil {
+		t.Fatalf("err: %s", err)
+	}
 }
 
 var testAccProviders map[string]terraform.ResourceProvider

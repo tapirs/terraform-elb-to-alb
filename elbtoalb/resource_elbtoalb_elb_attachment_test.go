@@ -1,8 +1,6 @@
 package elbtoalb
 
-import (
-
-)
+import ()
 
 // add one attachment
 const testAccAWSELBAttachmentConfig1 = `

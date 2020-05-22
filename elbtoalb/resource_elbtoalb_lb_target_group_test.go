@@ -14,7 +14,6 @@ func init() {
 
 }
 
-
 func TestLBTargetGroupCloudwatchSuffixFromARN(t *testing.T) {
 	cases := []struct {
 		name   string
