@@ -21,7 +21,7 @@ jobs:
           version: v1.26
           working-directory: /home/runner/work/terraform-elb-to-alb/terraform-elb-to-alb
           # golangci-lint command line arguments
-          args: --timeout 100000 # optional, default is 
+          args: --timeout 100000ms # optional, default is 
           # golangci-lint working directory, default is project root
           # the token is used for fetching patch of a pull request to show only new issues
           #github-token: # default is ${{ github.token }}
