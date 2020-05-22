@@ -3,7 +3,7 @@ package elbtoalb
 import (
 	"errors"
 	"fmt"
-	"testing"
+	// "testing"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
@@ -13,37 +13,6 @@ import (
 
 func init() {
 
-}
-
-func TestLBCloudwatchSuffixFromARN(t *testing.T) {
-	cases := []struct {
-		name   string
-		arn    *string
-		suffix string
-	}{
-		{
-			name:   "valid suffix",
-			arn:    aws.String(`arn:aws:elasticloadbalancing:us-east-1:123456:loadbalancer/app/my-alb/abc123`),
-			suffix: `app/my-alb/abc123`,
-		},
-		{
-			name:   "no suffix",
-			arn:    aws.String(`arn:aws:elasticloadbalancing:us-east-1:123456:loadbalancer`),
-			suffix: ``,
-		},
-		{
-			name:   "nil ARN",
-			arn:    nil,
-			suffix: ``,
-		},
-	}
-
-	for _, tc := range cases {
-		actual := lbSuffixFromARN(tc.arn)
-		if actual != tc.suffix {
-			t.Fatalf("bad suffix: %q\nExpected: %s\n     Got: %s", tc.name, tc.suffix, actual)
-		}
-	}
 }
 
 func testAccCheckAWSlbARNs(pre, post *elbv2.LoadBalancer) resource.TestCheckFunc {
