@@ -291,7 +291,7 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-    _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = \"vpc_id\"\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = true\ninterval = 30\npath = \"/\"\nport = \"traffic-port\"\nprotocol = \"%s\"\ntimeout = 6\nhealthy_threshold = 3\nunhealthy_threshold = 3\nmatcher = \"200\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, instanceProtocol))
+    _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = vpc-id\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = true\ninterval = 30\npath = \"/\"\nport = \"traffic-port\"\nprotocol = \"%s\"\ntimeout = 6\nhealthy_threshold = 3\nunhealthy_threshold = 3\nmatcher = \"200\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, instanceProtocol))
 		if err != nil {
         return err
     }

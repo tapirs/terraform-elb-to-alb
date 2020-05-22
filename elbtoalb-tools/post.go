@@ -97,7 +97,7 @@ func readMappings() error {
 }
 
 func readTFFiles() error {
-  err := filepath.Walk("./elbtoalb-output/lb_terraform",
+  err := filepath.Walk("./lb_terraform",
     func(path string, info os.FileInfo, err error) error {
     if err != nil {
         return err
@@ -109,9 +109,9 @@ func readTFFiles() error {
         return err
       }
 
-      replaced := replacePostMappings(string(dat))
+      replaced := replaceMyMappings(string(dat))
 
-      replaced = replaceMyMappings(replaced)
+      replaced = replacePostMappings(replaced)
 
       err = writeTFFiles(path, replaced)
       if err != nil {
@@ -121,8 +121,8 @@ func readTFFiles() error {
 
       log.Println("path is - " + path)
 
-      if path != "elbtoalb-output/lb_terraform/lb.tf" {
-        err = appendTFFile("./elbtoalb-output/lb_terraform/lb.tf", replaced)
+      if path != "lb_terraform/lb.tf" {
+        err = appendTFFile("./lb_terraform/lb.tf", replaced)
         if err != nil {
           log.Println(err)
           return err
@@ -185,7 +185,7 @@ func appendTFFile(filename string, data string) error {
 func replaceMyMappings(data string) string {
   replaced := data
   for key, value := range myMappings {
-    replaced = strings.ReplaceAll(replaced, "\"" + key + "\"", value)
+    replaced = strings.ReplaceAll(replaced, key, value)
   }
 
   return replaced
