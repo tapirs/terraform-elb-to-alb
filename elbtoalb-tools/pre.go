@@ -48,7 +48,7 @@ type Issue struct {
 func Pre(tf_dir string) error {
 	log.Println("pre")
 
-	mappings = make(map[string]string, 0)
+	mappings = make(map[string]string)
 	mappings["aws_elb"] = "elbtoalb_elb"
 
 	err := os.MkdirAll("./elbtoalb-output", 0755)
@@ -149,6 +149,9 @@ func getResourceName(match string) error {
 	currentResourceName := string(subMatches[1])
 
 	r, err = regexp.Compile(`(?s)(.*?)(-|_)?elb(-|_)?(.*)`)
+  if err != nil {
+    return err
+  }
 	subMatches = r.FindSubmatch([]byte(currentResourceName))
 
 	mappings["resource_"+currentResourceName] = string(subMatches[1]) + string(subMatches[4])
@@ -283,7 +286,6 @@ func diagnoseIssue(issue Issue) error {
 			newMatches = append(newMatches, match)
 			// fmt.Println(match)
 		}
-		break
 	default:
 		fmt.Println("unable to find the issue")
 	}
@@ -418,6 +420,9 @@ func createMappingsOutput() error {
 
 	for key, val := range mappings {
 		_, err = w.WriteString(strings.ReplaceAll(key, "\n", "") + "=" + val + "\n")
+    if err != nil {
+			return err
+		}
 	}
 
 	w.Flush()
@@ -435,10 +440,8 @@ func variableName(variable string) string {
 			switch section {
 			case "terraform_remote_state":
 				section = "trs"
-				break
 			case "outputs":
 				section = ""
-				break
 			}
 			section = strings.ReplaceAll(section, "_", "-")
 			sectionSections := strings.Split(section, "-")

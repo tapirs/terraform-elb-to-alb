@@ -2,7 +2,6 @@ package elbtoalbtools
 
 import (
 	"bufio"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -18,12 +17,21 @@ var myMappings map[string]string
 func Post() error {
 	log.Println("post")
 
-	postMappings = make(map[string]string, 0)
-	myMappings = make(map[string]string, 0)
+	postMappings = make(map[string]string)
+	myMappings = make(map[string]string)
 
-	readMappings()
-	readMyMappings()
-	readTFFiles()
+	err := readMappings()
+  if err != nil {
+    return err
+  }
+	err = readMyMappings()
+  if err != nil {
+    return err
+  }
+	err = readTFFiles()
+  if err != nil {
+    return err
+  }
 
 	return nil
 }
@@ -141,7 +149,7 @@ func readTFFiles() error {
 }
 
 func writeTFFiles(filename string, data string) error {
-	f, err := os.Create(fmt.Sprintf("%s", filename))
+	f, err := os.Create(filename)
 	if err != nil {
 		log.Println(err)
 		return err
@@ -162,7 +170,7 @@ func writeTFFiles(filename string, data string) error {
 }
 
 func appendTFFile(filename string, data string) error {
-	f, err := os.OpenFile(fmt.Sprintf("%s", filename), os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+	f, err := os.OpenFile(filename, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
 	if err != nil {
 		log.Println(err)
 		return err

@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/service/elbv2"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/resource"
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
@@ -241,7 +240,7 @@ func resourceElbtoalbLbTargetGroup() *schema.Resource {
 				},
 			},
 
-			"tags": tagsSchemaForceNew(),
+			// "tags": tagsSchemaForceNew(),
 		},
 	}
 }
@@ -377,141 +376,6 @@ func lbTargetGroupSuffixFromARN(arn *string) string {
 	}
 
 	return ""
-}
-
-// flattenAwsLbTargetGroupResource takes a *elbv2.TargetGroup and populates all respective resource fields.
-func flattenAwsLbTargetGroupResource(d *schema.ResourceData, meta interface{}, targetGroup *elbv2.TargetGroup) error {
-
-	d.Set("arn", targetGroup.TargetGroupArn)
-	d.Set("arn_suffix", lbTargetGroupSuffixFromARN(targetGroup.TargetGroupArn))
-	d.Set("name", targetGroup.TargetGroupName)
-	d.Set("target_type", targetGroup.TargetType)
-
-	healthCheck := make(map[string]interface{})
-	healthCheck["enabled"] = aws.BoolValue(targetGroup.HealthCheckEnabled)
-	healthCheck["interval"] = int(aws.Int64Value(targetGroup.HealthCheckIntervalSeconds))
-	healthCheck["port"] = aws.StringValue(targetGroup.HealthCheckPort)
-	healthCheck["protocol"] = aws.StringValue(targetGroup.HealthCheckProtocol)
-	healthCheck["timeout"] = int(aws.Int64Value(targetGroup.HealthCheckTimeoutSeconds))
-	healthCheck["healthy_threshold"] = int(aws.Int64Value(targetGroup.HealthyThresholdCount))
-	healthCheck["unhealthy_threshold"] = int(aws.Int64Value(targetGroup.UnhealthyThresholdCount))
-
-	if targetGroup.HealthCheckPath != nil {
-		healthCheck["path"] = aws.StringValue(targetGroup.HealthCheckPath)
-	}
-	if targetGroup.Matcher != nil && targetGroup.Matcher.HttpCode != nil {
-		healthCheck["matcher"] = aws.StringValue(targetGroup.Matcher.HttpCode)
-	}
-	if v, _ := d.Get("target_type").(string); v != elbv2.TargetTypeEnumLambda {
-		d.Set("vpc_id", targetGroup.VpcId)
-		d.Set("port", targetGroup.Port)
-		d.Set("protocol", targetGroup.Protocol)
-	}
-
-	if err := d.Set("health_check", []interface{}{healthCheck}); err != nil {
-		return fmt.Errorf("error setting health_check: %s", err)
-	}
-
-	// attrResp, err := elbconn.DescribeTargetGroupAttributes(&elbv2.DescribeTargetGroupAttributesInput{
-	// 	TargetGroupArn: aws.String(d.Id()),
-	// })
-	// if err != nil {
-	// 	return fmt.Errorf("Error retrieving Target Group Attributes: %s", err)
-	// }
-	//
-	// for _, attr := range attrResp.Attributes {
-	// 	switch aws.StringValue(attr.Key) {
-	// 	case "lambda.multi_value_headers.enabled":
-	// 		enabled, err := strconv.ParseBool(aws.StringValue(attr.Value))
-	// 		if err != nil {
-	// 			return fmt.Errorf("Error converting lambda.multi_value_headers.enabled to bool: %s", aws.StringValue(attr.Value))
-	// 		}
-	// 		d.Set("lambda_multi_value_headers_enabled", enabled)
-	// 	case "proxy_protocol_v2.enabled":
-	// 		enabled, err := strconv.ParseBool(aws.StringValue(attr.Value))
-	// 		if err != nil {
-	// 			return fmt.Errorf("Error converting proxy_protocol_v2.enabled to bool: %s", aws.StringValue(attr.Value))
-	// 		}
-	// 		d.Set("proxy_protocol_v2", enabled)
-	// 	case "slow_start.duration_seconds":
-	// 		slowStart, err := strconv.Atoi(aws.StringValue(attr.Value))
-	// 		if err != nil {
-	// 			return fmt.Errorf("Error converting slow_start.duration_seconds to int: %s", aws.StringValue(attr.Value))
-	// 		}
-	// 		d.Set("slow_start", slowStart)
-	// 	case "load_balancing.algorithm.type":
-	// 		loadBalancingAlgorithm := aws.StringValue(attr.Value)
-	// 		d.Set("load_balancing_algorithm_type", loadBalancingAlgorithm)
-	// 	}
-	// }
-
-	// We only read in the stickiness attributes if the target group is not
-	// TCP-based. This ensures we don't end up causing a spurious diff if someone
-	// has defined the stickiness block on a TCP target group (albeit with
-	// false), for which this update would clobber the state coming from config
-	// for.
-	//
-	// This is a workaround to support module design where the module needs to
-	// support HTTP and TCP target groups.
-	// switch {
-	// case aws.StringValue(targetGroup.Protocol) != elbv2.ProtocolEnumTcp:
-	// 	if err = flattenAwsLbTargetGroupStickiness(d, attrResp.Attributes); err != nil {
-	// 		return err
-	// 	}
-	// case aws.StringValue(targetGroup.Protocol) == elbv2.ProtocolEnumTcp && len(d.Get("stickiness").([]interface{})) < 1:
-	// 	if err = d.Set("stickiness", []interface{}{}); err != nil {
-	// 		return fmt.Errorf("error setting stickiness: %s", err)
-	// 	}
-	// }
-
-	// tags, err := keyvaluetags.Elbv2ListTags(elbconn, d.Id())
-	//
-	// if err != nil {
-	// 	return fmt.Errorf("error listing tags for LB Target Group (%s): %s", d.Id(), err)
-	// }
-	//
-	// if err := d.Set("tags", tags.IgnoreAws().Map()); err != nil {
-	// 	return fmt.Errorf("error setting tags: %s", err)
-	// }
-
-	return nil
-}
-
-func flattenAwsLbTargetGroupStickiness(d *schema.ResourceData, attributes []*elbv2.TargetGroupAttribute) error {
-	stickinessMap := map[string]interface{}{}
-	for _, attr := range attributes {
-		switch aws.StringValue(attr.Key) {
-		case "stickiness.enabled":
-			enabled, err := strconv.ParseBool(aws.StringValue(attr.Value))
-			if err != nil {
-				return fmt.Errorf("Error converting stickiness.enabled to bool: %s", aws.StringValue(attr.Value))
-			}
-			stickinessMap["enabled"] = enabled
-		case "stickiness.type":
-			stickinessMap["type"] = aws.StringValue(attr.Value)
-		case "stickiness.lb_cookie.duration_seconds":
-			duration, err := strconv.Atoi(aws.StringValue(attr.Value))
-			if err != nil {
-				return fmt.Errorf("Error converting stickiness.lb_cookie.duration_seconds to int: %s", aws.StringValue(attr.Value))
-			}
-			stickinessMap["cookie_duration"] = duration
-		case "deregistration_delay.timeout_seconds":
-			timeout, err := strconv.Atoi(aws.StringValue(attr.Value))
-			if err != nil {
-				return fmt.Errorf("Error converting deregistration_delay.timeout_seconds to int: %s", aws.StringValue(attr.Value))
-			}
-			d.Set("deregistration_delay", timeout)
-		}
-	}
-
-	setStickyMap := []interface{}{}
-	if len(stickinessMap) > 0 {
-		setStickyMap = []interface{}{stickinessMap}
-	}
-	if err := d.Set("stickiness", setStickyMap); err != nil {
-		return err
-	}
-	return nil
 }
 
 func resourceElbtoalbLbTargetGroupCustomizeDiff(diff *schema.ResourceDiff, v interface{}) error {

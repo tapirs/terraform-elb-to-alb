@@ -246,7 +246,7 @@ func resourceElbtoalbLb() *schema.Resource {
 				Computed: true,
 			},
 
-			"tags": tagsSchemaForceNew(),
+			// "tags": tagsSchemaForceNew(),
 		},
 	}
 }
@@ -254,7 +254,10 @@ func resourceElbtoalbLb() *schema.Resource {
 func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	log.Println("in lb create")
 
-	resourceElbtoalbLbRead(d, meta)
+	err := resourceElbtoalbLbRead(d, meta)
+	if err != nil {
+		return err
+	}
 
 	lbName := "lb-e2a-env-br"
 
@@ -342,7 +345,7 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	lb.Access_logs = access_logs
 	lb.Tags = tags
 
-	err := os.MkdirAll("./lb_terraform/", 0755)
+	err = os.MkdirAll("./lb_terraform/", 0755)
 	if err != nil {
 		return err
 	}

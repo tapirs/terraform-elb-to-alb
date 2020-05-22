@@ -3,20 +3,9 @@ package elbtoalb
 import (
 	"bytes"
 	"encoding/json"
-	"strings"
 
 	"github.com/hashicorp/terraform-plugin-sdk/helper/schema"
-	"github.com/jen20/awspolicyequivalence"
 )
-
-func suppressEquivalentAwsPolicyDiffs(k, old, new string, d *schema.ResourceData) bool {
-	equivalent, err := awspolicy.PoliciesAreEquivalent(old, new)
-	if err != nil {
-		return false
-	}
-
-	return equivalent
-}
 
 // suppressEquivalentTypeStringBoolean provides custom difference suppression for TypeString booleans
 // Some arguments require three values: true, false, and "" (unspecified), but
@@ -51,12 +40,4 @@ func suppressEquivalentJsonDiffs(k, old, new string, d *schema.ResourceData) boo
 	}
 
 	return jsonBytesEqual(ob.Bytes(), nb.Bytes())
-}
-
-func suppressRoute53ZoneNameWithTrailingDot(k, old, new string, d *schema.ResourceData) bool {
-	// "." is different from "".
-	if old == "." || new == "." {
-		return old == new
-	}
-	return strings.TrimSuffix(old, ".") == strings.TrimSuffix(new, ".")
 }

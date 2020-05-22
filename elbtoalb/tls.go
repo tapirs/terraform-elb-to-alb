@@ -8,7 +8,6 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
-	"strings"
 	"time"
 )
 
@@ -223,8 +222,4 @@ func tlsRsaX509SelfSignedCertificatePem(keyPem, commonName string) string {
 	}
 
 	return string(pem.EncodeToMemory(certificateBlock))
-}
-
-func tlsPemEscapeNewlines(pem string) string {
-	return strings.ReplaceAll(pem, "\n", "\\n")
 }

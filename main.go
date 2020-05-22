@@ -19,10 +19,16 @@ func main() {
 
 	if *prePtr {
 		fmt.Println("pre")
-		elbtoalbtools.Pre(*dirPtr)
+		err := elbtoalbtools.Pre(*dirPtr)
+		if err != nil {
+			fmt.Println(err)
+		}
 	} else if *postPtr {
 		fmt.Println("post")
-		elbtoalbtools.Post()
+		err := elbtoalbtools.Post()
+		if err != nil {
+			fmt.Println(err)
+		}
 	} else {
 		plugin.Serve(&plugin.ServeOpts{
 			ProviderFunc: elbtoalb.Provider})
