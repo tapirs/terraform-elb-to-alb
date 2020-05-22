@@ -459,7 +459,7 @@ func resourceElbtoalbLbListenerRuleCreate(d *schema.ResourceData, meta interface
 			listenerRuleName = strings.Replace(v.(string), "elb-", "listenerRule-", 1) + "-" + strconv.FormatInt(lbPort, 10) + "-" + strconv.FormatInt(instancePort, 10)
 			listenerArn = "aws_lb_listener." + "listener-" + strconv.FormatInt(lbPort, 10) + ".arn"
 			targetGroupArn = "aws_lb_target_group." + strings.Replace(v.(string), "elb-", "tg-", 1) + "-" + strconv.FormatInt(instancePort, 10) + ".arn"
-			hostHeader = "*" + strings.Replace(v.(string), "elb-", "", 1) + "domain_name"
+			hostHeader = "*" + strings.Replace(v.(string), "elb-", "", 1) + "domain-name"
 		}
 
 		targetGroupArn = strings.ReplaceAll(targetGroupArn, "-e2a-env-br", "")

@@ -74,7 +74,8 @@ The myMappings.txt allows you to set what certain things should be set to in the
 
 | key | value | reason |
 | --- | --- | --- |
-| vpc_id | The value for your vpc_id or a variable that references your vpc id in your terraform code | ELB's do not reference the vpc which they are built in, but ALB's must reference it's VPC so in order to specify the correct vpc_id this value needs to be passed in. |
+| vpc-id | The value for your vpc_id or a variable that references your vpc id in your terraform code | ELB's do not reference the vpc which they are built in, but ALB's must reference it's VPC so in order to specify the correct vpc_id this value needs to be passed in. |
+| domain-name | The value of you domain, for example .tapirs.co.uk. The value can also contain keys from your mappings, for example -e2a-env-br.tapirs.co.uk would replace e2a-env-br with an environment: -${local.environment}.tapirs.co.uk, which would ultimately be replaced by an environment value. | The filter for the listener rule is used to differentiate between calls on the same port to the same load balancer, in this case it depends on the host name used to make the call. This info is not needed for a classic load balancer and so needs to be fed into the tool. | 
 
 The file is laid out as key = value pairs.
 
