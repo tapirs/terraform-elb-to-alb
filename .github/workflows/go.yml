@@ -19,7 +19,7 @@ jobs:
         with:
           # version of golangci-lint to use in form of v1.2.3
           version: v1.26
-          working-directory: /home/runner/work/terraform-elb-to-alb/terraform-elb-to-alb
+          working-directory: $GITHUB_WORKSPACE/terraform-elb-to-alb
           # golangci-lint command line arguments
           args: --timeout 100000ms # optional, default is 
           # golangci-lint working directory, default is project root
