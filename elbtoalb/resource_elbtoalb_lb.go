@@ -18,7 +18,7 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
-type LB struct {
+type ALB struct {
 	Name               string
 	Internal           bool
 	Load_balancer_type string
@@ -34,13 +34,28 @@ type LB struct {
 	Tags map[string]interface{}
 }
 
+type NLB struct {
+	Name               string
+	Internal           bool
+	Load_balancer_type string
+	Subnets            []string
+
+	Enable_deletion_protection       bool
+	Enable_cross_zone_load_balancing bool
+
+	Access_logs Access_logs
+
+	Tags map[string]interface{}
+}
+
 type Access_logs struct {
 	Bucket  string
 	Prefix  string
 	Enabled bool
 }
 
-var lb LB
+var alb ALB
+var nlb NLB
 
 func resourceElbtoalbLb() *schema.Resource {
 	return &schema.Resource{
@@ -266,7 +281,7 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	idle_timeout := d.Get("idle_timeout")
 
 	security_groups_list := expandStringSet(d.Get("security_groups").(*schema.Set))
-	security_groups := lb.Security_groups
+	security_groups := alb.Security_groups
 	for _, sg := range security_groups_list {
 		log.Println(*sg)
 		log.Println(security_groups)
@@ -277,7 +292,7 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	}
 
 	subnets_list := expandStringSet(d.Get("subnets").(*schema.Set))
-	subnets := lb.Subnets
+	subnets := alb.Subnets
 	for _, sn := range subnets_list {
 		if !strings.Contains(strings.Join(subnets, ", "), fmt.Sprintf("\"%s\"", *sn)) {
 			subnets = append(subnets, fmt.Sprintf("\"%s\"", *sn))
@@ -288,7 +303,7 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 
 	access_logs_list := d.Get("access_logs").([]interface{})
 	var access_logs Access_logs
-	access_logs.Bucket = lb.Access_logs.Bucket
+	access_logs.Bucket = alb.Access_logs.Bucket
 	if len(access_logs_list) > 0 {
 		for key, val := range access_logs_list[0].(map[string]interface{}) {
 			if key == "bucket" {
@@ -298,7 +313,7 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 		}
 	}
 
-	access_logs.Prefix = lb.Name
+	access_logs.Prefix = alb.Name
 	access_logs.Enabled = true
 
 	// tags := "{\n"
@@ -320,10 +335,10 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	// tags = tags + "}"
 
 	var tags map[string]interface{}
-	if lb.Tags == nil {
+	if alb.Tags == nil {
 		tags = make(map[string]interface{})
 	} else {
-		tags = lb.Tags
+		tags = alb.Tags
 	}
 
 	for key, val := range d.Get("tags").(map[string]interface{}) {
@@ -336,16 +351,25 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 
 	}
 
-	lb.Name = lbName
-	lb.Internal = internal.(bool)
-	lb.Load_balancer_type = "application"
-	lb.Security_groups = security_groups
-	lb.Subnets = subnets
-	lb.Enable_deletion_protection = deletion_protection
-	lb.Enable_cross_zone_load_balancing = cz_lb.(bool)
-	lb.Idle_timeout = idle_timeout.(int)
-	lb.Access_logs = access_logs
-	lb.Tags = tags
+	alb.Name = "a" + lbName
+	alb.Internal = internal.(bool)
+	alb.Load_balancer_type = "application"
+	alb.Security_groups = security_groups
+	alb.Subnets = subnets
+	alb.Enable_deletion_protection = deletion_protection
+	alb.Enable_cross_zone_load_balancing = cz_lb.(bool)
+	alb.Idle_timeout = idle_timeout.(int)
+	alb.Access_logs = access_logs
+	alb.Tags = tags
+
+	nlb.Name = "n" + lbName
+	nlb.Internal = internal.(bool)
+	nlb.Load_balancer_type = "network"
+	nlb.Subnets = subnets
+	nlb.Enable_deletion_protection = deletion_protection
+	nlb.Enable_cross_zone_load_balancing = cz_lb.(bool)
+	nlb.Access_logs = access_logs
+	nlb.Tags = tags
 
 	err = os.MkdirAll("./lb_terraform/", 0755)
 	if err != nil {
@@ -361,7 +385,9 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 
 	// removed tags for now
 	// _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n\ntags = {\ntags = \"%v\"\n}\n}", lb.Name, lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled, lb.Tags["tags"]))
-	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"lb\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n}", lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled))
+	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"alb\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n}\n\n", alb.Name, alb.Internal, strings.Join(alb.Security_groups, ", "), strings.Join(alb.Subnets, ", "), alb.Enable_deletion_protection, alb.Enable_cross_zone_load_balancing, alb.Idle_timeout, alb.Access_logs.Bucket, alb.Access_logs.Prefix, alb.Access_logs.Enabled))
+
+	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"nlb\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n}", nlb.Name, nlb.Internal, strings.Join(nlb.Subnets, ", "), nlb.Enable_deletion_protection, nlb.Enable_cross_zone_load_balancing, nlb.Access_logs.Bucket, nlb.Access_logs.Prefix, nlb.Access_logs.Enabled))
 
 	if err != nil {
 		return err

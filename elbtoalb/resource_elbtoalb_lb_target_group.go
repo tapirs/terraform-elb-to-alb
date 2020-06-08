@@ -278,21 +278,29 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		healthcheck.Unhealthy_threshold = healthcheck_map["unhealthy_threshold"].(int)
 		healthcheck.Interval = healthcheck_map["interval"].(int)
 		healthcheck.Timeout = healthcheck_map["timeout"].(int)
-		healthcheck.Protocol = "HTTP"
-		healthcheck.Port = "traffic_port"
+		healthcheck.Protocol = ""
+		healthcheck.Port = "traffic-port"
 		healthcheck.Path = "/"
 
-		re, err := regexp.Compile(`(?s)(.*):(\d+)(/.*)`)
+		re, err := regexp.Compile(`(?s)(.*?):(\d+)(/.*)?`)
 		if err != nil {
 			log.Println(err)
 			return err
 		}
 
+		log.Println(healthcheck_map["target"].(string))
+
 		target := re.FindStringSubmatch(healthcheck_map["target"].(string))
+
+		log.Println(len(target))
 		if len(target) == 3 {
-			healthcheck.Protocol = target[0]
-			healthcheck.Port = target[1]
-			healthcheck.Path = target[2]
+			healthcheck.Protocol = target[1]
+			healthcheck.Port = target[2]
+		}
+		if len(target) == 4 {
+			healthcheck.Protocol = target[1]
+			healthcheck.Port = target[2]
+			healthcheck.Path = target[3]
 		}
 	}
 
@@ -300,10 +308,15 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		log.Println(listener)
 
 		instancePort := *listener.InstancePort
-		instanceProtocol := "HTTP"
+		instanceProtocol := strings.ToUpper(*listener.InstanceProtocol)
 
 		if (strings.ToUpper(*listener.InstanceProtocol) == elbv2.ProtocolEnumHttps || strings.ToUpper(*listener.InstanceProtocol) == elbv2.ProtocolEnumTls) && *listener.SSLCertificateId != "" {
-			instanceProtocol = "HTTPS"
+			instanceProtocol =strings.ToUpper(*listener.InstanceProtocol)
+		}
+
+		alb := false
+		if strings.ToUpper(*listener.Protocol) == elbv2.ProtocolEnumHttp || strings.ToUpper(*listener.Protocol) == elbv2.ProtocolEnumHttps {
+			alb = true
 		}
 
 		var groupName string
@@ -316,6 +329,10 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		}
 
 		resourceName := strings.ReplaceAll(groupName, "-e2a-env-br", "")
+
+		if healthcheck.Protocol == "" {
+			healthcheck.Protocol = strings.ToUpper(*listener.InstanceProtocol)
+		}
 
 		err = os.MkdirAll("./lb_terraform/target_group", 0755)
 		if err != nil {
@@ -330,7 +347,13 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-		_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = vpc-id\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = %v\ninterval = %d\npath = \"%s\"\nport = \"%s\"\nprotocol = \"%s\"\ntimeout = %d\nhealthy_threshold = %d\nunhealthy_threshold = %d\nmatcher = \"%s\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, healthcheck.Enabled, healthcheck.Interval, healthcheck.Path, healthcheck.Port, healthcheck.Protocol, healthcheck.Timeout, healthcheck.Healthy_threshold, healthcheck.Unhealthy_threshold, healthcheck.Matcher))
+
+		if alb {
+			_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = vpc-id\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = %v\ninterval = %d\npath = \"%s\"\nport = \"%s\"\nprotocol = \"%s\"\ntimeout = %d\nhealthy_threshold = %d\nunhealthy_threshold = %d\nmatcher = \"%s\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, healthcheck.Enabled, healthcheck.Interval, healthcheck.Path, healthcheck.Port, healthcheck.Protocol, healthcheck.Timeout, healthcheck.Healthy_threshold, healthcheck.Unhealthy_threshold, healthcheck.Matcher))
+		} else {
+			_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = vpc-id\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = %v\ninterval = %d\nport = \"%s\"\nprotocol = \"%s\"\nhealthy_threshold = %d\nunhealthy_threshold = %d\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, healthcheck.Enabled, healthcheck.Interval, healthcheck.Port, healthcheck.Protocol, healthcheck.Healthy_threshold, healthcheck.Healthy_threshold))
+		}
+
 		if err != nil {
 			return err
 		}

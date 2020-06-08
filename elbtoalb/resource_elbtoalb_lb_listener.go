@@ -331,13 +331,13 @@ func resourceElbtoalbLbListenerCreate(d *schema.ResourceData, meta interface{}) 
 		log.Println(listener)
 
 		lbPort := *listener.LoadBalancerPort
-		lbProtocol := "HTTP"
+		lbProtocol := strings.ToUpper(*listener.Protocol)
 		instancePort := *listener.InstancePort
 
 		lbSSL := ""
 
 		if (strings.ToUpper(*listener.Protocol) == elbv2.ProtocolEnumHttps || strings.ToUpper(*listener.Protocol) == elbv2.ProtocolEnumTls) && *listener.SSLCertificateId != "" {
-			lbProtocol = "HTTPS"
+			lbProtocol = strings.ToUpper(*listener.Protocol)
 			lbSSL = "ELBSecurityPolicy-2016-08"
 		}
 
@@ -351,7 +351,11 @@ func resourceElbtoalbLbListenerCreate(d *schema.ResourceData, meta interface{}) 
 
 		targetGroupArn = strings.ReplaceAll(targetGroupArn, "-e2a-env-br", "")
 
-		lbArn := "aws_lb.lb.arn"
+		lbArn := "aws_lb.nlb.arn"
+		if strings.ToUpper(*listener.Protocol) == elbv2.ProtocolEnumHttp || strings.ToUpper(*listener.Protocol) == elbv2.ProtocolEnumHttps {
+			lbArn = "aws_lb.alb.arn"
+		}
+
 
 		certificateArn := *listener.SSLCertificateId
 
