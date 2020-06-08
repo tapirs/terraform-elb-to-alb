@@ -336,7 +336,7 @@ func resourceElbtoalbLbListenerCreate(d *schema.ResourceData, meta interface{}) 
 
 		lbSSL := ""
 
-		if *listener.Protocol == "tcp" && *listener.SSLCertificateId != "" {
+		if (strings.ToUpper(*listener.Protocol) == elbv2.ProtocolEnumHttps || strings.ToUpper(*listener.Protocol) == elbv2.ProtocolEnumTls) && *listener.SSLCertificateId != "" {
 			lbProtocol = "HTTPS"
 			lbSSL = "ELBSecurityPolicy-2016-08"
 		}

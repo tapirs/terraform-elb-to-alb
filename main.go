@@ -18,13 +18,11 @@ func main() {
 	flag.Parse()
 
 	if *prePtr {
-		fmt.Println("pre")
 		err := elbtoalbtools.Pre(*dirPtr)
 		if err != nil {
 			fmt.Println(err)
 		}
 	} else if *postPtr {
-		fmt.Println("post")
 		err := elbtoalbtools.Post()
 		if err != nil {
 			fmt.Println(err)

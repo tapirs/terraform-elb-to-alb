@@ -15,6 +15,18 @@ import (
 	"github.com/hashicorp/terraform-plugin-sdk/helper/validation"
 )
 
+type Healthcheck struct {
+	Enabled bool
+	Interval  int
+	Path  string
+	Port string
+	Protocol string
+	Timeout int
+	Healthy_threshold int
+	Unhealthy_threshold int
+	Matcher string
+}
+
 func resourceElbtoalbLbTargetGroup() *schema.Resource {
 	return &schema.Resource{
 		// NLBs have restrictions on them at this time
@@ -256,13 +268,41 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 
 	deregistrationDelay := d.Get("connection_draining_timeout")
 
+	healthcheck_list := d.Get("health_check").([]interface{})
+	var healthcheck Healthcheck
+	if len(healthcheck_list) > 0 {
+		healthcheck_map := healthcheck_list[0].(map[string]interface{})
+		healthcheck.Enabled = true
+		healthcheck.Matcher = "200"
+		healthcheck.Healthy_threshold = healthcheck_map["healthy_threshold"].(int)
+		healthcheck.Unhealthy_threshold = healthcheck_map["unhealthy_threshold"].(int)
+		healthcheck.Interval = healthcheck_map["interval"].(int)
+		healthcheck.Timeout = healthcheck_map["timeout"].(int)
+		healthcheck.Protocol = "HTTP"
+		healthcheck.Port = "traffic_port"
+		healthcheck.Path = "/"
+
+		re, err := regexp.Compile(`(?s)(.*):(\d+)(/.*)`)
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+
+		target := re.FindStringSubmatch(healthcheck_map["target"].(string))
+		if len(target) == 3 {
+			healthcheck.Protocol = target[0]
+			healthcheck.Port = target[1]
+			healthcheck.Path = target[2]
+		}
+	}
+
 	for _, listener := range listeners {
 		log.Println(listener)
 
 		instancePort := *listener.InstancePort
 		instanceProtocol := "HTTP"
 
-		if *listener.InstanceProtocol == "tcp" && *listener.SSLCertificateId != "" {
+		if (strings.ToUpper(*listener.InstanceProtocol) == elbv2.ProtocolEnumHttps || strings.ToUpper(*listener.InstanceProtocol) == elbv2.ProtocolEnumTls) && *listener.SSLCertificateId != "" {
 			instanceProtocol = "HTTPS"
 		}
 
@@ -290,7 +330,7 @@ func resourceElbtoalbLbTargetGroupCreate(d *schema.ResourceData, meta interface{
 		defer f.Close()
 
 		w := bufio.NewWriter(f)
-		_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = vpc-id\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = true\ninterval = 30\npath = \"/\"\nport = \"traffic-port\"\nprotocol = \"%s\"\ntimeout = 6\nhealthy_threshold = 3\nunhealthy_threshold = 3\nmatcher = \"200\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, instanceProtocol))
+		_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb_target_group\" \"%s\" {\nname = \"%s\"\nport = %d\nprotocol = \"%s\"\nvpc_id = vpc-id\n\nderegistration_delay = %d\n\nhealth_check {\nenabled = %v\ninterval = %d\npath = \"%s\"\nport = \"%s\"\nprotocol = \"%s\"\ntimeout = %d\nhealthy_threshold = %d\nunhealthy_threshold = %d\nmatcher = \"%s\"\n}\n}", groupName, groupName, instancePort, instanceProtocol, deregistrationDelay, healthcheck.Enabled, healthcheck.Interval, healthcheck.Path, healthcheck.Port, healthcheck.Protocol, healthcheck.Timeout, healthcheck.Healthy_threshold, healthcheck.Unhealthy_threshold, healthcheck.Matcher))
 		if err != nil {
 			return err
 		}

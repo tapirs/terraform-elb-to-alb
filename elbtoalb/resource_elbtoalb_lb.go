@@ -246,7 +246,7 @@ func resourceElbtoalbLb() *schema.Resource {
 				Computed: true,
 			},
 
-			// "tags": tagsSchemaForceNew(),
+			"tags": tagsSchemaForceNew(),
 		},
 	}
 }
@@ -268,6 +268,8 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 	security_groups_list := expandStringSet(d.Get("security_groups").(*schema.Set))
 	security_groups := lb.Security_groups
 	for _, sg := range security_groups_list {
+		log.Println(*sg)
+		log.Println(security_groups)
 		if !strings.Contains(strings.Join(security_groups, ", "), fmt.Sprintf("\"%s\"", *sg)) {
 			security_groups = append(security_groups, fmt.Sprintf("\"%s\"", *sg))
 		}
@@ -359,7 +361,7 @@ func resourceElbtoalbLbCreate(d *schema.ResourceData, meta interface{}) error {
 
 	// removed tags for now
 	// _, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n\ntags = {\ntags = \"%v\"\n}\n}", lb.Name, lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled, lb.Tags["tags"]))
-	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"%s\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n}", lb.Name, lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled))
+	_, err = w.WriteString(fmt.Sprintf("resource \"aws_lb\" \"lb\" {\nname = \"%s\"\ninternal = %t\nload_balancer_type = \"application\"\nsecurity_groups = [%v]\nsubnets = [%v]\n\nenable_deletion_protection = %t\nenable_cross_zone_load_balancing = %t\nidle_timeout = %d\n\naccess_logs {\nbucket = \"%v\"\nprefix = \"%v\"\nenabled = %v\n}\n}", lb.Name, lb.Internal, strings.Join(lb.Security_groups, ", "), strings.Join(lb.Subnets, ", "), lb.Enable_deletion_protection, lb.Enable_cross_zone_load_balancing, lb.Idle_timeout, lb.Access_logs.Bucket, lb.Access_logs.Prefix, lb.Access_logs.Enabled))
 
 	if err != nil {
 		return err

@@ -46,7 +46,7 @@ type Issue struct {
 }
 
 func Pre(tf_dir string) error {
-	log.Println("pre")
+	log.Println("Starting pre-processing of terraform")
 
 	mappings = make(map[string]string)
 	mappings["aws_elb"] = "elbtoalb_elb"
@@ -57,12 +57,15 @@ func Pre(tf_dir string) error {
 		return err
 	}
 
+  log.Println("Gatherings all terraform files with elb resources under " + tf_dir)
 	err = filepath.Walk(tf_dir,
 		func(path string, info os.FileInfo, err error) error {
 			if err != nil {
+        log.Println(err)
 				return err
 			}
 			if filepath.Ext(path) == ".tf" {
+        log.Println("Found a terraform file - " + path)
 				r, err := regexp.Compile(`(?s)resource \"aws_elb\".*?\n}\n`)
 				if err != nil {
 					log.Println(err)
@@ -74,6 +77,7 @@ func Pre(tf_dir string) error {
 					return err
 				}
 
+        log.Println("Processing " + path)
 				err = processMatches(r.FindAllString(string(dat), -1))
 				if err != nil {
 					log.Println(err)
@@ -163,12 +167,13 @@ func getResourceName(match string) error {
 
 func processMatches(regexMatches []string) error {
 	for _, match := range regexMatches {
-		// fmt.Println(match)
+
 
 		err := getResourceName(match)
 		if err != nil {
 			return err
 		}
+
 
 		match = replaceMappings(match)
 
@@ -188,10 +193,10 @@ func processMatches(regexMatches []string) error {
 		if err != nil {
 			return err
 		}
-		match, err = mapTags(match)
-		if err != nil {
-			return err
-		}
+		// match, err = mapTags(match)
+		// if err != nil {
+		// 	return err
+		// }
 
 		// fmt.Println(match)
 
@@ -203,10 +208,11 @@ func processMatches(regexMatches []string) error {
 }
 
 func replaceMappings(match string) string {
+  log.Println("Replacing any known mappings")
+  log.Println(mappings)
+  // log.Println(match)
 	replaced := match
 	for key, value := range mappings {
-		// replaced = strings.ReplaceAll(replaced, "${" + key + "}", value)
-		// replaced = strings.ReplaceAll(replaced, "[" + key + "]", value)
 		replaced = strings.ReplaceAll(replaced, key, value)
 	}
 
@@ -257,6 +263,7 @@ func validateTerraform() error {
 }
 
 func diagnoseIssue(issue Issue) error {
+  log.Println("Diagnosing the issue - " + issue.Detail)
 	var newMatches []string
 
 	switch {
@@ -285,25 +292,54 @@ func diagnoseIssue(issue Issue) error {
 			}
 			newMatches = append(newMatches, match)
 			// fmt.Println(match)
+
+      err := createOutput(newMatches)
+    	if err != nil {
+    		log.Println(err)
+    		return err
+    	}
+		}
+  case strings.Contains(issue.Detail, "set of string required."):
+    r, _ := regexp.Compile(`(?s).*\"(.*)\".*`)
+
+		subMatches := r.FindSubmatch([]byte(issue.Detail))
+		issueProperty := string(subMatches[1])
+
+    re, _ := regexp.Compile(`` + issueProperty + `.*= (.*)`)
+
+    for _, match := range matches {
+			subMatch := re.FindSubmatch([]byte(match))
+      if len(subMatch) > 0 {
+        log.Println(string(subMatch[1]))
+        matchString := string(subMatch[1])
+        log.Println(matchString)
+        if !(strings.HasPrefix(matchString, "[") && strings.HasSuffix(matchString, "]")) {
+          mappings[matchString] = "[" + matchString + "]"
+
+
+        }
+        match = replaceMappings(match)
+      }
+      newMatches = append(newMatches, match)
+
+      err := createOutput(newMatches)
+    	if err != nil {
+    		log.Println(err)
+    		return err
+    	}
 		}
 	default:
 		fmt.Println("unable to find the issue")
-	}
-
-	err := createOutput(newMatches)
-	if err != nil {
-		log.Println(err)
-		return err
 	}
 
 	return nil
 }
 
 func mapLocal(match string) (string, error) {
+  log.Println("Mapping local variables")
 	r, _ := regexp.Compile(`(?s)\$?[{\[]local\.\w*[}\]]`)
 
 	locals := r.FindAllString(match, -1)
-	// fmt.Println(locals)
 
 	for _, local := range locals {
 		if _, ok := mappings[local]; !ok {
@@ -317,6 +353,7 @@ func mapLocal(match string) (string, error) {
 }
 
 func mapData(match string) (string, error) {
+  log.Println("Mapping data variables")
 	r, err := regexp.Compile(`(?m)\$?({|\[)?data\..*(}|])?`)
 	if err != nil {
 		log.Println(err)
@@ -391,6 +428,7 @@ func mapTags(match string) (string, error) {
 }
 
 func createOutput(output []string) error {
+  log.Println("Creating output terraform file")
 	f, err := os.Create("./elbtoalb-output/elbtoalb.tf")
 	if err != nil {
 		return err
@@ -411,6 +449,7 @@ func createOutput(output []string) error {
 }
 
 func createMappingsOutput() error {
+  log.Println("Creating mappings file")
 	f, err := os.Create("./elbtoalb-output/mappings.txt")
 	if err != nil {
 		return err

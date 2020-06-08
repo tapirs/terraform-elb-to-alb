@@ -246,7 +246,7 @@ func resourceElbtoalbElb() *schema.Resource {
 				Computed: true,
 			},
 
-			// "tags": tagsSchemaForceNew(),
+			"tags": tagsSchemaForceNew(),
 		},
 	}
 }
